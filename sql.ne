@@ -32,7 +32,7 @@ create_view ->
     %}
 
 manipulative_statement ->
-	 	select_statement {% d => d[0] %}
+     select_statement {% d => d[0] %}
 
 select_statement ->
     query_spec {% d => d[0] %}
@@ -63,7 +63,7 @@ query_spec ->
     %}
 
 table_exp ->
-		from_clause (__ where_clause | null) (__ group_by_clause | null) (__ having_clause | null) (__ order_clause | null) {%
+    from_clause (__ where_clause | null) (__ group_by_clause | null) (__ having_clause | null) (__ order_clause | null) {%
       d => ({
         type: 'from_table',
         from: drill(d[0]),
@@ -76,10 +76,10 @@ table_exp ->
 
 all_distinct ->
     ALL
-	|	DISTINCT
+  | DISTINCT
 
 from_clause ->
-		FROM __ table_ref_commalist {% d => d[2] %}
+    FROM __ table_ref_commalist {% d => d[2] %}
   | FROM __ "(" _ table_ref_commalist _ ")" {% d => d[4] %}
   | FROM __ subquery {% d => d[2] %}
 
@@ -92,8 +92,8 @@ group_by_clause ->
     %}
 
 selection ->
-	  "*" {% d => ({type:'select_all'}) %}
-	| selection_column_comma_list {% d => d[0] %}
+    "*" {% d => ({type:'select_all'}) %}
+  | selection_column_comma_list {% d => d[0] %}
 
 selection_column_comma_list ->
     selection_column {% d => ({columns: [d[0]]}) %}
@@ -108,12 +108,12 @@ selection_column ->
   | scalar_exp __ AS __ name {% d => ({type: 'column', expression: drill(d[0]), alias: d[4]}) %}
 
 table_ref_commalist ->
-		table_ref
-	|	table_ref_commalist _ "," _ table_ref
+    table_ref
+  | table_ref_commalist _ "," _ table_ref
 
 table_ref ->
-		table
-	|	table __ range_variable
+    table
+  | table __ range_variable
   | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ predicate {%
       d => ({
         type: 'join',
@@ -125,12 +125,12 @@ table_ref ->
     %}
 
 table ->
-		name {% d => ({type: 'table', table: d[0].value}) %}
-	|	name "." name {% d => ({type: 'table', table: d[0].value +'.'+ d[2].value }) %}
+    name {% d => ({type: 'table', table: d[0].value}) %}
+  | name "." name {% d => ({type: 'table', table: d[0].value +'.'+ d[2].value }) %}
   | name ( __ AS __ | __) name {% d => ({type: 'table', table: d[0].value, alias: d[2].value}) %}
 
 where_clause ->
-	  WHERE __ search_condition {% d => ({type:'where', condition: d[2]}) %}
+    WHERE __ search_condition {% d => ({type:'where', condition: d[2]}) %}
 
 having_clause ->
     HAVING __ search_condition {% d => ({type: 'having', condition: d[2]}) %}
@@ -150,50 +150,50 @@ order_statement ->
   | scalar_exp __ DESC
 
 search_condition ->
-	  search_condition __ OR __ search_condition
-	|	search_condition __ AND __ search_condition
-	|	NOT __ search_condition
-	|	"(" _ search_condition _ ")"
-	|	predicate
+    search_condition __ OR __ search_condition
+  | search_condition __ AND __ search_condition
+  | NOT __ search_condition
+  | "(" _ search_condition _ ")"
+  | predicate
 
 predicate ->
-		comparison_predicate
-	|	between_predicate
-	|	like_predicate
-	|	test_for_null
-	|	in_predicate
-	|	all_or_any_predicate
-	|	existence_test
+    comparison_predicate
+  | between_predicate
+  | like_predicate
+  | test_for_null
+  | in_predicate
+  | all_or_any_predicate
+  | existence_test
   | atom
 
 comparison_predicate ->
-		scalar_exp _ comparison _ scalar_exp {% d => ({type:'comparison_predicate', left: d[0], right: d[4], operator: d[2].type}) %}
-	|	scalar_exp _ comparison _ subquery
+    scalar_exp _ comparison _ scalar_exp {% d => ({type:'comparison_predicate', left: d[0], right: d[4], operator: d[2].type}) %}
+  | scalar_exp _ comparison _ subquery
 
 between_predicate ->
-		scalar_exp __ NOT __ BETWEEN __ scalar_exp __ AND __ scalar_exp
-	|	scalar_exp __ BETWEEN __ scalar_exp __ AND __ scalar_exp
+    scalar_exp __ NOT __ BETWEEN __ scalar_exp __ AND __ scalar_exp
+  | scalar_exp __ BETWEEN __ scalar_exp __ AND __ scalar_exp
 
 like_predicate ->
-		scalar_exp __ NOT __ LIKE __ atom
-	|	scalar_exp __ LIKE __ atom
+    scalar_exp __ NOT __ LIKE __ atom
+  | scalar_exp __ LIKE __ atom
 
 test_for_null ->
-		scalar_exp __ IS __ NOT __ NULLX
-	|	scalar_exp __ IS __ NULLX
+    scalar_exp __ IS __ NOT __ NULLX
+  | scalar_exp __ IS __ NULLX
 
 in_predicate ->
-		scalar_exp __ NOT __ IN _ "(" _ subquery _ ")"
-	|	scalar_exp __ IN _ "(" _ subquery _ ")"
-	|	scalar_exp NOT __ IN _ "(" _ atom_commalist _ ")"
-	|	scalar_exp __ IN __ "(" atom_commalist ")"
+    scalar_exp __ NOT __ IN _ "(" _ subquery _ ")"
+  | scalar_exp __ IN _ "(" _ subquery _ ")"
+  | scalar_exp NOT __ IN _ "(" _ atom_commalist _ ")"
+  | scalar_exp __ IN __ "(" atom_commalist ")"
 
 atom_commalist ->
-		atom
-	|	atom_commalist _ "," _ atom
+    atom
+  | atom_commalist _ "," _ atom
 
 all_or_any_predicate ->
-		scalar_exp _ comparison _ any_all_some __ subquery
+    scalar_exp _ comparison _ any_all_some __ subquery
 
 comparison ->
     comparison_type {% d => ({type: "comparison", type: d[0][0]}) %}
@@ -209,28 +209,28 @@ comparison_type ->
   | "!="
 
 any_all_some ->
-		ANY
-	|	ALL
-	|	SOME
+    ANY
+  | ALL
+  | SOME
 
 existence_test ->
-		EXISTS __ subquery
+    EXISTS __ subquery
 
 subquery ->
-		"(" _ query_spec _ ")" {% d => d[2] %}
+    "(" _ query_spec _ ")" {% d => d[2] %}
 
 column_ref ->
     scalar_exp {% d => ({type: 'column', expression: d[0]}) %}
   | scalar_exp __ AS __ name {% d => ({type: 'column', expression: d[0], alias: d[4].value}) %}
 
 scalar_exp ->
-		scalar_exp _ "+" _ scalar_exp
-	|	scalar_exp _ "-" _ scalar_exp
-	|	scalar_exp _ "*" _ scalar_exp
+    scalar_exp _ "+" _ scalar_exp
+  | scalar_exp _ "-" _ scalar_exp
+  | scalar_exp _ "*" _ scalar_exp
   | scalar_exp _ "/" _ scalar_exp
-	|	atom
-	|	function_ref
-	|	"(" scalar_exp ")"
+  | atom
+  | function_ref
+  | "(" scalar_exp ")"
   | if_statement
   | case_statement
   | interval_statement
@@ -307,17 +307,17 @@ when_statement ->
 
 atom ->
     variable
-	| literal
+  | literal
 
 variable ->
     name {% d => ({type: 'variable', value: d[0]}) %}
   | name "." name {% d => ({type: 'variable', value: d[1], parent: d[0]}) %}
 
 function_ref ->
-		name _ "(" _ "*" _ ")"
-	|	name _ "(" _ "DISTINCT" __ column _ ")"
-	|	name _ "(" _ "ALL" __ scalar_exp _ ")"
-	|	name _ "(" _ scalar_exp_comma_list _ ")" {%
+    name _ "(" _ "*" _ ")"
+  | name _ "(" _ "DISTINCT" __ column _ ")"
+  | name _ "(" _ "ALL" __ scalar_exp _ ")"
+  | name _ "(" _ scalar_exp_comma_list _ ")" {%
     d => ({
       type: 'function',
       name: d[0],
@@ -338,8 +338,8 @@ string ->
   | sqstring {% d => ({type: 'string', string: d[0]}) %}
 
 literal ->
-		string
-	|	INTNUM
+    string
+  | INTNUM
 
 INTNUM ->
     decimal {% d => ({type: 'decimal', value: d[0]}) %}
@@ -350,9 +350,9 @@ column ->
 
 parameter -> name
 
-range_variable ->	name
+range_variable ->  name
 
-user ->	name
+user ->  name
 
 name ->
     btstring {% d => ({ type: 'name', value: d[0] }) %}
