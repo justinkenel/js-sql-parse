@@ -2,7 +2,6 @@
 
 @builtin "whitespace.ne"
 @builtin "number.ne"
-@builtin "string.ne"
 
 @{%
   function drill(o) {
@@ -80,7 +79,6 @@ all_distinct ->
 
 from_clause ->
     FROM __ table_ref_commalist {% d => d[2] %}
-  | FROM __ "(" _ table_ref_commalist _ ")" {% d => d[4] %}
   | FROM __ subquery {% d => d[2] %}
 
 group_by_clause ->
@@ -112,9 +110,10 @@ table_ref_commalist ->
   | table_ref_commalist _ "," _ table_ref
 
 table_ref ->
-    table
+    "(" _ table_ref _ ")" {% d => d[2] %}
+  | table
   | table __ range_variable
-  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ predicate {%
+  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ search_condition {%
       d => ({
         type: 'join',
         side: ((d[1]||[])[1]),
@@ -150,10 +149,10 @@ order_statement ->
   | scalar_exp __ DESC
 
 search_condition ->
-    search_condition __ OR __ search_condition
+    "(" _ search_condition _ ")"
+  | search_condition __ OR __ search_condition
   | search_condition __ AND __ search_condition
   | NOT __ search_condition
-  | "(" _ search_condition _ ")"
   | predicate
 
 predicate ->
@@ -314,10 +313,10 @@ variable ->
   | name "." name {% d => ({type: 'variable', value: d[1], parent: d[0]}) %}
 
 function_ref ->
-    name _ "(" _ "*" _ ")"
-  | name _ "(" _ "DISTINCT" __ column _ ")"
-  | name _ "(" _ "ALL" __ scalar_exp _ ")"
-  | name _ "(" _ scalar_exp_comma_list _ ")" {%
+    identifier _ "(" _ "*" _ ")"
+  | identifier _ "(" _ "DISTINCT" __ column _ ")"
+  | identifier _ "(" _ "ALL" __ scalar_exp _ ")"
+  | identifier _ "(" _ scalar_exp_comma_list _ ")" {%
     d => ({
       type: 'function',
       name: d[0],
@@ -333,13 +332,52 @@ scalar_exp_comma_list ->
       })
     %}
 
+literal ->
+    string
+  | INTNUM
+
 string ->
     dqstring {% d => ({type: 'string', string: d[0]}) %}
   | sqstring {% d => ({type: 'string', string: d[0]}) %}
 
-literal ->
-    string
-  | INTNUM
+
+
+
+### Copied & modified from builtin
+
+dqstring -> "\"" dstrchar:* "\"" {% function(d) {return d[1].join(""); } %}
+sqstring -> "'"  sstrchar:* "'"  {% function(d) {return d[1].join(""); } %}
+btstring -> "`"  [^`]:*    "`"  {% function(d) {return d[1].join(""); } %}
+
+dstrchar -> [^\\"\n] {% id %}
+    | "\\" strescape {%
+      function(d) {
+        return JSON.parse("\""+d.join("")+"\"");
+      }
+      %}
+
+sstrchar -> [^\\'\n] {% id %}
+    | "\\" strescape {%
+      function(d) {
+        return JSON.parse("\""+d.join("")+"\"");
+      } %}
+    | "\\'"
+        {% function(d) {return "'"; } %}
+
+strescape -> ["\\/bfnrt] {% id %}
+    | "u" [a-fA-F0-9] [a-fA-F0-9] [a-fA-F0-9] [a-fA-F0-9] {%
+    function(d) {
+        return d.join("");
+    }
+%}
+
+###
+
+
+
+
+
+
 
 INTNUM ->
     decimal {% d => ({type: 'decimal', value: d[0]}) %}
@@ -357,12 +395,13 @@ user ->  name
 name ->
     btstring {% d => ({ type: 'name', value: d[0] }) %}
   | "[" [^\]]:* "]" {% d => ({ type: 'name', value: d[1].join('') }) %}
-  | [a-z] [a-zA-Z0-9_]:* {% (d,l,reject) => {
-    const value = d[0] + d[1].join('');
-    // ensure that the name is not a keyword
-    if(keywords.indexOf(value.toUpperCase()) != -1) return reject;
-    return {type: 'name', value: value};
+  | identifier {% (d,l,reject) => {
+    if(keywords.indexOf(d[0].toUpperCase()) != -1) return reject;
+    return {type: 'name', value: d[0]};
   } %}
+
+identifier ->
+  [a-z] [a-zA-Z0-9_]:* {% d=> d[0] + d[1].join('') %}
 
 CAST -> [Cc] [Aa] [Ss] [Tt]
 CONVERT -> [Cc] [Oo] [Nn] [Vv] [Ee] [Rr] [Tt]
