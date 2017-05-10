@@ -4,10 +4,11 @@
   "description": "A nearley based sql parser and analyzer",
   "main": "parser.js",
   "dependencies": {
-    "mocha": "^3.3.0",
     "nearley": "^2.9.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "mocha": "^3.3.0"
+  },
   "scripts": {
     "compile": "nearleyc ./sql.ne -o sql-parse.js",
     "test": "npm run compile && mocha ./test",
