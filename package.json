@@ -10,7 +10,8 @@
   "devDependencies": {},
   "scripts": {
     "compile": "nearleyc ./sql.ne -o sql-parse.js",
-    "test": "mocha ./test"
+    "test": "npm run compile && mocha ./test",
+    "prepackage": "npm run compile"
   },
   "repository": {
     "type": "git",
