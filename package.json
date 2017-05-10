@@ -1,0 +1,30 @@
+{
+  "name": "js-sql-parse",
+  "version": "0.0.1",
+  "description": "A nearley based sql parser and analyzer",
+  "main": "parser.js",
+  "dependencies": {
+    "mocha": "^3.3.0",
+    "nearley": "^2.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "compile": "nearleyc ./sql.ne -o sql-parse.js",
+    "test": "mocha ./test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/justinkenel/js-sql-parse.git"
+  },
+  "keywords": [
+    "js",
+    "sql",
+    "parse"
+  ],
+  "author": "jfkenel@gmail.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/justinkenel/js-sql-parse/issues"
+  },
+  "homepage": "https://github.com/justinkenel/js-sql-parse#readme"
+}
