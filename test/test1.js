@@ -33,6 +33,15 @@ const tests = [
     }
   },
   {
+    sql: 'select case when x=1 then "x" when x=2 then "y" end'
+  },
+  {
+    sql: 'select case when (x=1) then "x" when x = 2 then "y" end'
+  },
+  {
+    sql: 'select case when true then case when true then 1 end end as `v` from `test_table`'
+  },
+  {
     sql: 'select x, sum(1) AS `count` from y left join x on (a.foo=b.foo)'
   },
   {
@@ -42,7 +51,28 @@ const tests = [
     }
   },
   {
+    sql: 'select x and y and z from l'
+  },
+  {
+    sql: 'select x + y + z from l'
+  },
+  {
     sql: "select replace(substr('test',10), 'a', '') AS `testing`"
+  },
+  {
+    sql: "select sum(if(`this`.`name`=`mapping`, 0, 1))"
+  },
+  {
+    sql: 'select (select * from x) as x'
+  },
+  {
+    sql: 'select (x is not null) as y'
+  },
+  {
+    sql: 'select cast(x as date)'
+  },
+  {
+    sql: 'select length(x)>0 and a.b is not null'
   }
 ];
 

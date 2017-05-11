@@ -22,7 +22,7 @@ module.exports = {
     const parsedResult = parsed.results;
     if(!parsedResult.length) throw 'Invalid sql: ' + sql;
     if(parsedResult.length > 1) {
-      console.error(JSON.stringify(parsedResult, null, 2));
+      // console.error(JSON.stringify(parsedResult, null, 2));
       throw 'SQL ambiguous: Report to developers ' + sql;
     }
 
@@ -39,6 +39,8 @@ module.exports = {
     if(operation == 'create_view') {
       createdTables=[result.table.table];
       sourceTables=Object.keys(referencedTables).filter(x => x != result.table.table);
+    } else {
+      sourceTables=Object.keys(referencedTables);
     }
 
     return {

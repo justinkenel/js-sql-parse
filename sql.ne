@@ -5,16 +5,15 @@
 
 @{%
   function drill(o) {
-    if(o && o.length==1 && o[0]) return drill(o[0]);
+    //if(o && o.length==1 && o[0]) return drill(o[0]);
     return o;
   }
 
-  const keywords=['HAVING', 'WHERE', 'GROUP', 'BY', 'VIEW', 'CREATE', 'OR',
-    'REPLACE', 'ALL', 'DISTINCT', 'IF', 'CASE', 'WHEN', 'THEN', 'ELSE',
-    'END', 'OR', 'NOT', 'IS', 'IN', 'ANY', 'SOME', 'EXISTS', 'NULLX',
-    'BETWEEN', 'SELECT', 'FROM', 'AS', 'AND', 'LIKE', 'RIGHT', 'LEFT', 'INNER',
-    'JOIN', 'ON', 'UNION' ];
+  const reserved=require('./reserved.json');
+  const valid_function_identifiers=['LEFT','RIGHT','REPLACE']
 %}
+
+main -> sql (_ ";" | null) {% d => d[0] %}
 
 sql ->
     manipulative_statement {% d => d[0] %}
@@ -82,12 +81,8 @@ from_clause ->
   | FROM __ subquery {% d => d[2] %}
 
 group_by_clause ->
-    GROUP __ BY __ selection_column_comma_list {%
-      d => ({
-        type: 'group_by',
-        columns: d[4]
-      })
-    %}
+    GROUP __ BY __ selection_column_comma_list {% d => ({ type: 'group_by', columns: d[4] }) %}
+  | GROUP __ BY "(" _ selection_column_comma_list _ ")" {% d => ({ type: 'group_by', columns: d[6] }) %}
 
 selection ->
     "*" {% d => ({type:'select_all'}) %}
@@ -102,40 +97,47 @@ selection_column_comma_list ->
     %}
 
 selection_column ->
-    scalar_exp {% d => ({type: 'column', expression: drill(d[0])}) %}
-  | scalar_exp __ AS __ name {% d => ({type: 'column', expression: drill(d[0]), alias: d[4]}) %}
+    expr {% d => ({type: 'column', expression: drill(d[0])}) %}
+  | expr __ AS __ identifier {% d => ({type: 'column', expression: drill(d[0]), alias: d[4]}) %}
 
 table_ref_commalist ->
     table_ref
   | table_ref_commalist _ "," _ table_ref
 
+@{%
+  function tableRef(d) {
+    return {
+      type: 'join',
+      side: ((d[1]||[])[1]),
+      left: d[0],
+      right: d[4],
+      on: d[8]
+    };
+  }
+%}
+
 table_ref ->
     "(" _ table_ref _ ")" {% d => d[2] %}
   | table
-  | table __ range_variable
-  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ search_condition {%
-      d => ({
-        type: 'join',
-        side: ((d[1]||[])[1]),
-        left: d[0],
-        right: d[4],
-        on: d[8]
-      })
-    %}
+  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ expr {% tableRef %}
+  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON ("(" _ expr _ ")") {% tableRef %}
 
 table ->
-    name {% d => ({type: 'table', table: d[0].value}) %}
-  | name "." name {% d => ({type: 'table', table: d[0].value +'.'+ d[2].value }) %}
-  | name ( __ AS __ | __) name {% d => ({type: 'table', table: d[0].value, alias: d[2].value}) %}
+    identifier {% d => ({type: 'table', table: d[0].value}) %}
+  | identifier "." identifier {% d => ({type: 'table', table: d[0].value +'.'+ d[2].value }) %}
+  | identifier ( __ AS __ | __) identifier {% d => ({type: 'table', table: d[0].value, alias: d[2].value}) %}
 
 where_clause ->
-    WHERE __ search_condition {% d => ({type:'where', condition: d[2]}) %}
+    WHERE __ expr {% d => ({type:'where', condition: d[2]}) %}
+  | WHERE "(" _ expr _ ")" {% d => ({type:'where', condition: d[3]}) %}
 
 having_clause ->
-    HAVING __ search_condition {% d => ({type: 'having', condition: d[2]}) %}
+    HAVING __ expr {% d => ({type: 'having', condition: d[2]}) %}
+  | HAVING "(" _ expr _ ")" {% d => ({type: 'having', condition: d[3]}) %}
 
 order_clause ->
     ORDER __ BY __ order_statement_comma_list {% d => ({type: 'order', order: d[4].order}) %}
+  | ORDER __ BY "(" _ order_statement_comma_list _ ")" {% d => ({type: 'order', order: d[5].order}) %}
 
 order_statement_comma_list ->
     order_statement {% d => ({order: d[0]}) %}
@@ -144,58 +146,48 @@ order_statement_comma_list ->
     %}
 
 order_statement ->
-    scalar_exp
-  | scalar_exp __ ASC
-  | scalar_exp __ DESC
+    expr
+  | expr __ ASC
+  | expr __ DESC
 
-search_condition ->
-    "(" _ search_condition _ ")"
-  | search_condition __ OR __ search_condition
-  | search_condition __ AND __ search_condition
-  | NOT __ search_condition
+column_ref ->
+    expr {% d => ({type: 'column', expression: d[0]}) %}
+  | expr __ AS __ identifier {% d => ({type: 'column', expression: d[0], alias: d[4].value}) %}
+
+# https://dev.mysql.com/doc/refman/5.7/en/expressions.html
+expr ->
+    pre_expr OR post_boolean_primary
+  | pre_expr "||" post_boolean_primary
+  | pre_expr XOR post_boolean_primary
+  | pre_expr AND post_boolean_primary
+  | pre_expr "&&" post_boolean_primary
+  | NOT post_boolean_primary
+  | "!" post_boolean_primary
+  | pre_boolean_primary IS (__ NOT | null) __ (TRUE | FALSE | UNKNOWN)
+  | boolean_primary
+
+pre_expr ->
+    expr __
+  | "(" _ expr _ ")"
+
+post_expr ->
+    __ expr
+  | "(" _ expr _ ")"
+
+boolean_primary ->
+    pre_boolean_primary IS (__ NOT | null) __ NULLX
+  | boolean_primary "<=>" predicate
+  | boolean_primary _ comparison_type _ predicate
+  | boolean_primary _ comparison_type _ (ANY | ALL) subquery
   | predicate
 
-predicate ->
-    comparison_predicate
-  | between_predicate
-  | like_predicate
-  | test_for_null
-  | in_predicate
-  | all_or_any_predicate
-  | existence_test
-  | atom
+pre_boolean_primary ->
+    "(" _ boolean_primary _ ")"
+  | boolean_primary __
 
-comparison_predicate ->
-    scalar_exp _ comparison _ scalar_exp {% d => ({type:'comparison_predicate', left: d[0], right: d[4], operator: d[2].type}) %}
-  | scalar_exp _ comparison _ subquery
-
-between_predicate ->
-    scalar_exp __ NOT __ BETWEEN __ scalar_exp __ AND __ scalar_exp
-  | scalar_exp __ BETWEEN __ scalar_exp __ AND __ scalar_exp
-
-like_predicate ->
-    scalar_exp __ NOT __ LIKE __ atom
-  | scalar_exp __ LIKE __ atom
-
-test_for_null ->
-    scalar_exp __ IS __ NOT __ NULLX
-  | scalar_exp __ IS __ NULLX
-
-in_predicate ->
-    scalar_exp __ NOT __ IN _ "(" _ subquery _ ")"
-  | scalar_exp __ IN _ "(" _ subquery _ ")"
-  | scalar_exp NOT __ IN _ "(" _ atom_commalist _ ")"
-  | scalar_exp __ IN __ "(" atom_commalist ")"
-
-atom_commalist ->
-    atom
-  | atom_commalist _ "," _ atom
-
-all_or_any_predicate ->
-    scalar_exp _ comparison _ any_all_some __ subquery
-
-comparison ->
-    comparison_type {% d => ({type: "comparison", type: d[0][0]}) %}
+post_boolean_primary ->
+    "(" _ boolean_primary _ ")"
+  | __ boolean_primary
 
 comparison_type ->
     "="
@@ -204,73 +196,86 @@ comparison_type ->
   | "<="
   | ">"
   | ">="
-  | "+"
   | "!="
 
-any_all_some ->
-    ANY
-  | ALL
-  | SOME
+predicate ->
+    in_predicate
+  | between_predicate
+  | like_predicate
+  | bit_expr
 
-existence_test ->
-    EXISTS __ subquery
+in_predicate ->
+    pre_bit_expr (NOT __ | null) IN _ subquery
+  | pre_bit_expr (NOT __ | null) IN _ "(" _ expr_comma_list _ ")"
 
-subquery ->
-    "(" _ query_spec _ ")" {% d => d[2] %}
+between_predicate ->
+    pre_bit_expr (NOT __ | null) BETWEEN mid_bit_expr AND post_bit_expr
 
-column_ref ->
-    scalar_exp {% d => ({type: 'column', expression: d[0]}) %}
-  | scalar_exp __ AS __ name {% d => ({type: 'column', expression: d[0], alias: d[4].value}) %}
+mid_bit_expr ->
+    "(" _ bit_expr _ ")"
+  | __ "(" _ bit_expr _ ")"
+  | "(" _ bit_expr _ ")" __
+  | __ bit_expr __
 
-scalar_exp ->
-    scalar_exp _ "+" _ scalar_exp
-  | scalar_exp _ "-" _ scalar_exp
-  | scalar_exp _ "*" _ scalar_exp
-  | scalar_exp _ "/" _ scalar_exp
-  | atom
-  | function_ref
-  | "(" scalar_exp ")"
-  | if_statement
+like_predicate ->
+    pre_bit_expr (NOT __ | null) LIKE post_bit_expr
+
+bit_expr ->
+    bit_expr _ "|" _ simple_expr
+  | bit_expr _ "&" _ simple_expr
+  | bit_expr _ "<<" _ simple_expr
+  | bit_expr _ ">>" _ simple_expr
+  | bit_expr _ "+" _ simple_expr
+  | bit_expr _ "-" _ simple_expr
+  | bit_expr _ "*" _ simple_expr
+  | bit_expr _ "/" _ simple_expr
+  | pre_bit_expr DIV post_simple_expr
+  | pre_bit_expr MOD post_simple_expr
+  | bit_expr _ "%" _ simple_expr
+  | bit_expr _ "^" _ simple_expr
+  | bit_expr _ "+" _ interval_expr
+  | bit_expr _ "-" _ interval_expr
+  | simple_expr
+
+pre_bit_expr ->
+    bit_expr __
+  | "(" _ bit_expr _ ")"
+
+post_bit_expr ->
+    __ bit_expr
+  | "(" _ bit_expr _ ")"
+
+simple_expr ->
+    literal
+  | identifier
+  | function_call
+  # | simple_expr COLLATE
+  | "(" _ expr_comma_list _ ")"
+  | subquery
+  | EXISTS _ subquery
   | case_statement
-  | interval_statement
+  | if_statement
   | cast_statement
+  | convert_statement
+  | identifier "." identifier
 
-interval_statement ->
-    INTERVAL __ scalar_exp __ date_unit {%
-      d => ({
-        type: 'interval',
-        value: d[2],
-        unit: d[4]
-      })
-    %}
+post_simple_expr ->
+    __ simple_expr
+  | "(" _ simple_expr _ ")"
 
-cast_statement ->
-    CAST _ "(" _ scalar_exp __ AS __ data_type _ ")" {%
-      d => ({
-        type: 'cast',
-        value: d[4],
-        type: d[8]
-      })
-    %}
+literal ->
+    string
+  | decimal
+  | NULLX
+  | TRUE
+  | FALSE
 
-data_type ->
-    "BINARY" ("[" int "]" | null)
-  | "CHAR" ("[" int "]" | null)
-  | "DATE"
-  | "DECIMAL" ("[" int "]" | null)
-  | "NCHAR"
-  | "SIGNED"
-  | "TIME"
-  | "UNSIGNED"
-
-date_unit ->
-    "MICROSECOND" | "SECOND" | "MINUTE" | "HOUR" | "DAY" | "WEEK" | "MONTH" | "QUARTER" | "YEAR" |
-    "SECOND_MICROSECOND" | "MINUTE_MICROSECOND" | "MINUTE_SECOND" | "HOUR_MICROSECOND" |
-    "HOUR_SECOND" | "HOUR_MINUTE" | "DAY_MICROSECOND" | "DAY_SECOND" | "DAY_MINUTE" |
-    "DAY_HOUR" | "YEAR_MONTH"
+expr_comma_list ->
+    expr
+  | expr_comma_list _ "," _ expr
 
 if_statement ->
-    IF _ "(" _ scalar_exp _ "," _ scalar_exp _ ("," scalar_exp _ | _) ")" {%
+    IF _ "(" _ expr _ "," _ expr _ "," _ expr _ ")" {%
       d => ({
         type: 'if',
         condition: d[4],
@@ -280,7 +285,7 @@ if_statement ->
     %}
 
 case_statement ->
-    CASE __ when_statement_list (__ ELSE __ scalar_exp __ | __) END {%
+    CASE __ when_statement_list (__ ELSE __ expr __ | __) END {%
       d => ({
         type: 'case',
         when_statements: d[2],
@@ -296,7 +301,7 @@ when_statement_list ->
   %}
 
 when_statement ->
-    WHEN __ predicate __ THEN __ scalar_exp {%
+    WHEN __ expr __ THEN __ expr {%
       d => ({
         type: 'when',
         condition: d[2],
@@ -304,19 +309,63 @@ when_statement ->
       })
     %}
 
-atom ->
-    variable
-  | literal
+subquery ->
+    "(" _ query_spec _ ")" {% d => d[2] %}
 
-variable ->
-    name {% d => ({type: 'variable', value: d[0]}) %}
-  | name "." name {% d => ({type: 'variable', value: d[1], parent: d[0]}) %}
+convert_statement ->
+    CONVERT _ "(" expr __ USING __ identifier ")" {%
+      d => ({
+        type: 'convert',
+        value: d[2],
+        using: d[4]
+      })
+    %}
 
-function_ref ->
-    identifier _ "(" _ "*" _ ")"
-  | identifier _ "(" _ "DISTINCT" __ column _ ")"
-  | identifier _ "(" _ "ALL" __ scalar_exp _ ")"
-  | identifier _ "(" _ scalar_exp_comma_list _ ")" {%
+interval_expr ->
+    INTERVAL __ expr __ date_unit {%
+      d => ({
+        type: 'interval',
+        value: d[2],
+        unit: d[4]
+      })
+    %}
+
+cast_statement ->
+    CAST _ "(" _ expr __ AS __ data_type _ ")" {%
+      d => ({
+        type: 'cast',
+        value: d[4],
+        type: d[8]
+      })
+    %}
+
+data_type ->
+    "BINARY" ("[" int "]" | null)
+  | "CHAR" ("[" int "]" | null)
+  | DATE
+  | "DECIMAL" ("[" int "]" | null)
+  | "NCHAR"
+  | SIGNED
+  | "TIME"
+  | "UNSIGNED"
+
+date_unit ->
+    "MICROSECOND" | "SECOND" | "MINUTE" | "HOUR" | "DAY" | "WEEK" | MONTH | "QUARTER" | "YEAR" |
+    "SECOND_MICROSECOND" | "MINUTE_MICROSECOND" | "MINUTE_SECOND" | "HOUR_MICROSECOND" |
+    "HOUR_SECOND" | "HOUR_MINUTE" | "DAY_MICROSECOND" | "DAY_SECOND" | "DAY_MINUTE" |
+    "DAY_HOUR" | "YEAR_MONTH"
+
+DATE -> [Dd] [Aa] [Tt] [Ee]
+SIGNED -> [Ss] [Ii] [Gg] [Nn] [Ee] [Dd]
+
+MONTH -> [Mm] [Oo] [Nn] [Tt] [Hh]
+
+function_call ->
+    function_identifier _ "(" _ "*" _ ")"
+  | function_identifier _ "(" _ "DISTINCT" __ column _ ")"
+  | function_identifier _ "(" _ "ALL" post_expr _ ")"
+  | function_identifier _ "()"
+  | function_identifier _ "(" _ expr_comma_list _ ")" {%
     d => ({
       type: 'function',
       name: d[0],
@@ -324,24 +373,29 @@ function_ref ->
     })
   %}
 
-scalar_exp_comma_list ->
-    scalar_exp {% d => ({expressions: [d[0]]}) %}
-  | scalar_exp_comma_list _ "," _ scalar_exp {%
-      d => ({
-        expressions: (d[0].expressions||[]).concat([d[4]])
-      })
-    %}
-
-literal ->
-    string
-  | INTNUM
-
 string ->
     dqstring {% d => ({type: 'string', string: d[0]}) %}
   | sqstring {% d => ({type: 'string', string: d[0]}) %}
 
+column ->
+    identifier {% d => ({type: 'column', name: d[0].value}) %}
+  | identifier __ AS __ identifier {% d => ({type: 'column', name: d[0].value, alias: d[2].value}) %}
 
+identifier ->
+    btstring {% d => ({value:d[0]}) %}
+  | [a-z] [a-zA-Z0-9_]:* {% (d,l,reject) => {
+    const value = d[0] + d[1].join('');
+    if(reserved.indexOf(value.toUpperCase()) != -1) return reject;
+    return {value: value};
+  } %}
 
+function_identifier ->
+    btstring {% d => ({value:d[0]}) %}
+  | [a-z] [a-zA-Z0-9_]:* {% (d,l,reject) => {
+    const value = d[0] + d[1].join('');
+    if(reserved.indexOf(value.toUpperCase()) != -1 && valid_function_identifiers.indexOf(value.toUpperCase()) == -1) return reject;
+    return {value: value};
+  } %}
 
 ### Copied & modified from builtin
 
@@ -371,93 +425,74 @@ strescape -> ["\\/bfnrt] {% id %}
     }
 %}
 
-###
+### Keywords
 
+AND -> [Aa] [Nn] [Dd]
+ANY -> [Aa] [Nn] [Yy]
+ALL -> [Aa] [Ll] [Ll]
+AS -> [Aa] [Ss]
+ASC -> [Aa] [Ss] [Cc]
 
+BETWEEN -> [Bb] [Ee] [Tt] [Ww] [Ee] [Ee] [Nn]
+BY -> [Bb] [Yy]
 
-
-
-
-
-INTNUM ->
-    decimal {% d => ({type: 'decimal', value: d[0]}) %}
-
-column ->
-    name {% d => ({type: 'column', name: d[0].value}) %}
-  | name __ AS __ name {% d => ({type: 'column', name: d[0].value, alias: d[2].value}) %}
-
-parameter -> name
-
-range_variable ->  name
-
-user ->  name
-
-name ->
-    btstring {% d => ({ type: 'name', value: d[0] }) %}
-  | "[" [^\]]:* "]" {% d => ({ type: 'name', value: d[1].join('') }) %}
-  | identifier {% (d,l,reject) => {
-    if(keywords.indexOf(d[0].toUpperCase()) != -1) return reject;
-    return {type: 'name', value: d[0]};
-  } %}
-
-identifier ->
-  [a-z] [a-zA-Z0-9_]:* {% d=> d[0] + d[1].join('') %}
-
+CASE -> [Cc] [Aa] [Ss] [Ee]
 CAST -> [Cc] [Aa] [Ss] [Tt]
 CONVERT -> [Cc] [Oo] [Nn] [Vv] [Ee] [Rr] [Tt]
-USING -> [Uu] [Ss] [Ii] [Nn] [Gg]
+CREATE -> [Cc] [Rr] [Ee] [Aa] [Tt] [Ee]
 
-INTERVAL -> [Ii] [Nn] [Tt] [Ee] [Rr] [Vv] [Aa] [Ll]
+DESC -> [Dd] [Ee] [Ss] [Cc]
+DISTINCT -> [Dd] [Ii] [Ss] [Tt] [Ii] [Nn] [Cc] [Tt]
+DIV -> [Dd] [Ii] [Vv]
 
-LEFT -> [Ll] [Ee] [Ff] [Tt] {% d => 'left' %}
-RIGHT -> [Rr] [Ii] [Gg] [Hh] [Tt] {% d => 'right' %}
-INNER -> [Ii] [Nn] [Nn] [Ee] [Rr] {% d => 'inner' %}
-JOIN -> [Jj] [Oo] [Ii] [Nn]
-ON -> [Oo] [Nn]
-UNION -> [Uu] [Nn] [Ii] [Oo] [Nn]
+ELSE -> [Ee] [Ll] [Ss] [Ee]
+END -> [Ee] [Nn] [Dd]
+EXISTS -> [Ee] [Xx] [Ii] [Ss] [Tt] [Ss]
+
+FALSE -> [Ff] [Aa] [Ll] [Ss] [Ee]
+FROM -> [Ff] [Rr] [Oo] [Mm]
+
+GROUP -> [Gg] [Rr] [Oo] [Uu] [Pp]
 
 HAVING -> [Hh] [Aa] [Vv] [Ii] [Nn] [Gg]
 
-WHERE -> [Ww] [Hh] [Ee] [Rr] [Ee]
+IF -> [Ii] [Ff]
+IN -> [Ii] [Nn]
+INNER -> [Ii] [Nn] [Nn] [Ee] [Rr] {% d => 'inner' %}
+INTERVAL -> [Ii] [Nn] [Tt] [Ee] [Rr] [Vv] [Aa] [Ll]
+IS -> [Ii] [Ss]
 
-ASC -> [Aa] [Ss] [Cc]
-DESC -> [Dd] [Ee] [Ss] [Cc]
+JOIN -> [Jj] [Oo] [Ii] [Nn]
 
+LEFT -> [Ll] [Ee] [Ff] [Tt] {% d => 'left' %}
+LIKE -> [Ll] [Ii] [Kk] [Ee]
+
+MOD -> [Mm] [Oo] [Dd]
+
+NOT -> [Nn] [Oo] [Tt]
+NULLX -> [Nn] [Uu] [Ll] [Ll] [Xx]
+  | [Nn] [Uu] [Ll] [Ll]
+
+ON -> [Oo] [Nn]
+OR -> [Oo] [Rr]
 ORDER -> [Oo] [Rr] [Dd] [Ee] [Rr]
-GROUP -> [Gg] [Rr] [Oo] [Uu] [Pp]
-BY -> [Bb] [Yy]
-
-VIEW -> [Vv] [Ii] [Ee] [Ww]
-CREATE -> [Cc] [Rr] [Ee] [Aa] [Tt] [Ee]
 
 REPLACE -> [Rr] [Ee] [Pp] [Ll] [Aa] [Cc] [Ee]
+RIGHT -> [Rr] [Ii] [Gg] [Hh] [Tt] {% d => 'right' %}
 
-ALL -> [Aa] [Ll] [Ll]
-DISTINCT -> [Dd] [Ii] [Ss] [Tt] [Ii] [Nn] [Cc] [Tt]
-
-IF -> [Ii] [Ff]
-CASE -> [Cc] [Aa] [Ss] [Ee]
-WHEN -> [Ww] [Hh] [Ee] [Nn]
-THEN -> [Tt] [Hh] [Ee] [Nn]
-ELSE -> [Ee] [Ll] [Ss] [Ee]
-END -> [Ee] [Nn] [Dd]
-
-OR -> [Oo] [Rr]
-NOT -> [Nn] [Oo] [Tt]
-IS -> [Ii] [Ss]
-IN -> [Ii] [Nn]
-
-ANY -> [Aa] [Nn] [Yy]
+SELECT -> [Ss] [Ee] [Ll] [Ee] [Cc] [Tt]
 SOME -> [Ss] [Oo] [Mm] [Ee]
 
-EXISTS -> [Ee] [Xx] [Ii] [Ss] [Tt] [Ss]
+THEN -> [Tt] [Hh] [Ee] [Nn]
+TRUE -> [Tt] [Rr] [Uu] [Ee]
 
-NULLX -> [Nn] [Uu] [Ll] [Ll] [Xx]
+UNION -> [Uu] [Nn] [Ii] [Oo] [Nn]
+UNKNOWN -> [Uu] [Kk] [Oo] [Ww] [Nn]
+USING -> [Uu] [Ss] [Ii] [Nn] [Gg]
 
-BETWEEN -> [Bb] [Ee] [Tt] [Ww] [Ee] [Ee] [Nn]
-SELECT -> [Ss] [Ee] [Ll] [Ee] [Cc] [Tt]
-FROM -> [Ff] [Rr] [Oo] [Mm]
-AS -> [Aa] [Ss]
-AND -> [Aa] [Nn] [Dd]
+VIEW -> [Vv] [Ii] [Ee] [Ww]
 
-LIKE -> [Ll] [Ii] [Kk] [Ee]
+WHEN -> [Ww] [Hh] [Ee] [Nn]
+WHERE -> [Ww] [Hh] [Ee] [Rr] [Ee]
+
+XOR -> [Xx] [Oo] [Rr]
