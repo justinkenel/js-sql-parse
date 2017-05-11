@@ -1,6 +1,6 @@
 {
   "name": "js-sql-parse",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A nearley based sql parser and analyzer",
   "main": "parser.js",
   "dependencies": {
