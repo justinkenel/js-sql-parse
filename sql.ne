@@ -340,30 +340,41 @@ cast_statement ->
     %}
 
 data_type ->
-    "BINARY" ("[" int "]" | null)
-  | "CHAR" ("[" int "]" | null)
-  | DATE
-  | "DECIMAL" ("[" int "]" | null)
-  | "NCHAR"
-  | SIGNED
-  | "TIME"
-  | "UNSIGNED"
+    B I N A R Y  ("[" int  "]" | null )
+  | C H A R  ("[" int  "]" | null )
+  | D A T E
+  | D E C I M A L  ("[" int  "]" | null )
+  | N C H A R
+  | S I G N E D
+  | T I M E
+  | U N S I G N E D
 
 date_unit ->
-    "MICROSECOND" | "SECOND" | "MINUTE" | "HOUR" | "DAY" | "WEEK" | MONTH | "QUARTER" | "YEAR" |
-    "SECOND_MICROSECOND" | "MINUTE_MICROSECOND" | "MINUTE_SECOND" | "HOUR_MICROSECOND" |
-    "HOUR_SECOND" | "HOUR_MINUTE" | "DAY_MICROSECOND" | "DAY_SECOND" | "DAY_MINUTE" |
-    "DAY_HOUR" | "YEAR_MONTH"
-
-DATE -> [Dd] [Aa] [Tt] [Ee]
-SIGNED -> [Ss] [Ii] [Gg] [Nn] [Ee] [Dd]
-
-MONTH -> [Mm] [Oo] [Nn] [Tt] [Hh]
+    M I C R O S E C O N D
+  | S E C O N D
+  | M I N U T E
+  | H O U R
+  | D A Y
+  | W E E K
+  | M O N T H
+  | Q U A R T E R
+  | Y E A R
+  | S E C O N D "_" M I C R O S E C O N D
+  | M I N U T E "_" M I C R O S E C O N D
+  | M I N U T E "_" S E C O N D
+  | H O U R "_" M I C R O S E C O N D
+  | H O U R "_" S E C O N D
+  | H O U R "_" M I N U T E
+  | D A Y "_" M I C R O S E C O N D
+  | D A Y "_" S E C O N D
+  | D A Y "_" M I N U T E
+  | D A Y "_" H O U R
+  | Y E A R "_" M O N T H
 
 function_call ->
     function_identifier _ "(" _ "*" _ ")"
-  | function_identifier _ "(" _ "DISTINCT" __ column _ ")"
-  | function_identifier _ "(" _ "ALL" post_expr _ ")"
+  | function_identifier _ "(" _ DISTINCT __ column _ ")"
+  | function_identifier _ "(" _ ALL post_expr _ ")"
   | function_identifier _ "()"
   | function_identifier _ "(" _ expr_comma_list _ ")" {%
     d => ({
@@ -496,3 +507,30 @@ WHEN -> [Ww] [Hh] [Ee] [Nn]
 WHERE -> [Ww] [Hh] [Ee] [Rr] [Ee]
 
 XOR -> [Xx] [Oo] [Rr]
+
+A -> "A" | "a"
+B -> "B" | "b"
+C -> "C" | "c"
+D -> "D" | "d"
+E -> "E" | "e"
+F -> "F" | "f"
+G -> "G" | "g"
+H -> "H" | "h"
+I -> "I" | "i"
+J -> "J" | "j"
+K -> "K" | "k"
+L -> "L" | "l"
+M -> "M" | "m"
+N -> "N" | "n"
+O -> "O" | "o"
+P -> "P" | "p"
+Q -> "Q" | "q"
+R -> "R" | "r"
+S -> "S" | "s"
+T -> "T" | "t"
+U -> "U" | "u"
+V -> "V" | "v"
+W -> "W" | "w"
+X -> "X" | "x"
+Y -> "Y" | "y"
+Z -> "Z" | "z"
