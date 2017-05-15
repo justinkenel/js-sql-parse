@@ -174,6 +174,12 @@ post_expr ->
     __ expr
   | "(" _ expr _ ")"
 
+mid_expr ->
+    "(" _ expr _ ")"
+  | __ "(" _ expr _ ")"
+  | "(" _ expr _ ")" __
+  | __ expr __
+
 boolean_primary ->
     pre_boolean_primary IS (__ NOT | null) __ NULLX
   | boolean_primary "<=>" predicate
@@ -212,10 +218,10 @@ between_predicate ->
     pre_bit_expr (NOT __ | null) BETWEEN mid_bit_expr AND post_bit_expr
 
 mid_bit_expr ->
-    "(" _ bit_expr _ ")"
-  | __ "(" _ bit_expr _ ")"
-  | "(" _ bit_expr _ ")" __
-  | __ bit_expr __
+    "(" _ bit_expr _ ")" {% d => d[2] %}
+  | __ "(" _ bit_expr _ ")" {% d => d[3] %}
+  | "(" _ bit_expr _ ")" __ {% d => d[2] %}
+  | __ bit_expr __ {% d => d[1] %}
 
 like_predicate ->
     pre_bit_expr (NOT __ | null) LIKE post_bit_expr
@@ -284,10 +290,13 @@ if_statement ->
       })
     %}
 
+
+
 case_statement ->
-    CASE __ when_statement_list (__ ELSE __ expr __ | __) END {%
+    CASE (__ | mid_expr) when_statement_list (__ ELSE __ expr __ | __) END {%
       d => ({
         type: 'case',
+        match: d[1],
         when_statements: d[2],
         'else': (d[3]||[])[3]
       })

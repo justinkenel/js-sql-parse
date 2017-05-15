@@ -76,6 +76,9 @@ const tests = [
   },
   {
     sql: 'select `a`.`b` AS `c`,(`x`.`y` - interval (dayofmonth(`a`.`b`) - 1) day) AS `month`,sum(`a`.`b`) AS `a`,sum(`a`.`b`) AS `c`,cast(substr(max(concat(`x`.`y`,`x`.`total`)),11) as signed) AS `a` from `b` group by `a`.`a`,(`a`.`b` - interval (dayofmonth(`x`.`y`) - 1) day)'
+  },
+  {
+    sql: 'select case "test" when "test" then 1 else 3 end'
   }
 ];
 
