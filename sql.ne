@@ -40,14 +40,14 @@ query_spec ->
   | SELECT (__ all_distinct __ | __) selection  {%
       d => ({
         type: 'select',
-        all_distinct: d[2],
+        all_distinct: (d[2]||[])[1],
         selection: d[3]
       })
     %}
   | SELECT (__ all_distinct __ | __) selection __ table_exp {%
       d => ({
         type: 'select',
-        all_distinct: d[1],
+        all_distinct: (d[1]||[])[1],
         selection: d[2],
         table_exp: d[4]
       })
@@ -73,8 +73,8 @@ table_exp ->
     %}
 
 all_distinct ->
-    ALL
-  | DISTINCT
+    ALL {% d => ({type: 'all'}) %}
+  | DISTINCT {% d => ({type: 'distinct'}) %}
 
 from_clause ->
     FROM __ table_ref_commalist {% d => d[2] %}
@@ -101,13 +101,13 @@ selection_column ->
   | expr __ AS __ identifier {% d => ({type: 'column', expression: drill(d[0]), alias: d[4]}) %}
 
 table_ref_commalist ->
-    table_ref
-  | table_ref_commalist _ "," _ table_ref
+    table_ref {% d => ({table_refs: [d[0]]}) %}
+  | table_ref_commalist _ "," _ table_ref {% d => ({ table_refs: (d[0].table_refs||[]).concat(d[4]) }) %}
 
 @{%
   function tableRef(d) {
     return {
-      type: 'join',
+      type: 'table_ref',
       side: ((d[1]||[])[1]),
       left: d[0],
       right: d[4],
@@ -118,7 +118,7 @@ table_ref_commalist ->
 
 table_ref ->
     "(" _ table_ref _ ")" {% d => d[2] %}
-  | table
+  | table {% d => d[0] %}
   | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ expr {% tableRef %}
   | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON ("(" _ expr _ ")") {% tableRef %}
 
@@ -146,76 +146,103 @@ order_statement_comma_list ->
     %}
 
 order_statement ->
-    expr
-  | expr __ ASC
-  | expr __ DESC
+    expr {% d => ({type:'order_statement', value:d[0]}) %}
+  | expr __ ASC {% d => ({type: 'order_statement', value: d[0], direction: 'asc'}) %}
+  | expr __ DESC {% d => ({type: 'order_statement', value: d[0], direction: 'desc'}) %}
 
 column_ref ->
     expr {% d => ({type: 'column', expression: d[0]}) %}
   | expr __ AS __ identifier {% d => ({type: 'column', expression: d[0], alias: d[4].value}) %}
 
+@{%
+function opExpr(operator) {
+  return d => ({
+    type: 'operator',
+    operator: operator,
+    left: d[0],
+    right: d[2]
+  });
+}
+
+function notOp(d) {
+  return {
+    type: 'operator',
+    operator: 'not',
+    operand: d[1]
+  };
+}
+%}
+
 # https://dev.mysql.com/doc/refman/5.7/en/expressions.html
 expr ->
-    pre_expr OR post_boolean_primary
-  | pre_expr "||" post_boolean_primary
-  | pre_expr XOR post_boolean_primary
-  | pre_expr AND post_boolean_primary
-  | pre_expr "&&" post_boolean_primary
-  | NOT post_boolean_primary
-  | "!" post_boolean_primary
+    pre_expr OR post_boolean_primary {% opExpr('or') %}
+  | pre_expr "||" post_boolean_primary {% opExpr('or') %}
+  | pre_expr XOR post_boolean_primary {% opExpr('xor') %}
+  | pre_expr AND post_boolean_primary {% opExpr('and') %}
+  | pre_expr "&&" post_boolean_primary {% opExpr('and') %}
+  | NOT post_boolean_primary {% notOp %}
+  | "!" post_boolean_primary {% notOp %}
   | pre_boolean_primary IS (__ NOT | null) __ (TRUE | FALSE | UNKNOWN)
-  | boolean_primary
+  | boolean_primary {% d => d[0] %}
 
 pre_expr ->
-    expr __
-  | "(" _ expr _ ")"
+    expr __ {% d => d[0] %}
+  | "(" _ expr _ ")" {% d => d[2] %}
 
 post_expr ->
-    __ expr
-  | "(" _ expr _ ")"
+    __ expr {% d => d[1] %}
+  | "(" _ expr _ ")" {% d => d[2] %}
 
 mid_expr ->
-    "(" _ expr _ ")"
-  | __ "(" _ expr _ ")"
-  | "(" _ expr _ ")" __
-  | __ expr __
+    "(" _ expr _ ")" {% d => d[2] %}
+  | __ "(" _ expr _ ")" {% d => d[3] %}
+  | "(" _ expr _ ")" __ {% d => d[2] %}
+  | __ expr __ {% d => d[1] %}
 
 boolean_primary ->
-    pre_boolean_primary IS (__ NOT | null) __ NULLX
-  | boolean_primary "<=>" predicate
-  | boolean_primary _ comparison_type _ predicate
+    pre_boolean_primary IS (__ NOT | null) __ NULLX {% d => ({type: 'is_null', not: d[2], value:d[0]}) %}
+  | boolean_primary "<=>" predicate {% opExpr('<=>') %}
+  | boolean_primary _ comparison_type _ predicate {% d => (opExpr(d[2]))(d) %}
   | boolean_primary _ comparison_type _ (ANY | ALL) subquery
-  | predicate
+  | predicate {% d => d[0] %}
 
 pre_boolean_primary ->
-    "(" _ boolean_primary _ ")"
-  | boolean_primary __
+    "(" _ boolean_primary _ ")" {% d => d[2] %}
+  | boolean_primary __ {% d => d[0] %}
 
 post_boolean_primary ->
-    "(" _ boolean_primary _ ")"
-  | __ boolean_primary
+    "(" _ boolean_primary _ ")" {% d => d[2] %}
+  | __ boolean_primary {% d => d[1] %}
 
 comparison_type ->
-    "="
-  | "<>"
-  | "<"
-  | "<="
-  | ">"
-  | ">="
-  | "!="
+    "=" {% d => d[0] %}
+  | "<>" {% d => d[0] %}
+  | "<" {% d => d[0] %}
+  | "<=" {% d => d[0] %}
+  | ">" {% d => d[0] %}
+  | ">=" {% d => d[0] %}
+  | "!=" {% d => d[0] %}
 
 predicate ->
-    in_predicate
-  | between_predicate
-  | like_predicate
-  | bit_expr
+    in_predicate {% d => d[0] %}
+  | between_predicate {% d => d[0] %}
+  | like_predicate {% d => d[0] %}
+  | bit_expr {% d => d[0] %}
 
 in_predicate ->
-    pre_bit_expr (NOT __ | null) IN _ subquery
-  | pre_bit_expr (NOT __ | null) IN _ "(" _ expr_comma_list _ ")"
+    pre_bit_expr (NOT __ | null) IN _ subquery {% d => ({type:'in', not: d[1], subquery: d[4]}) %}
+  | pre_bit_expr (NOT __ | null) IN _ "(" _ expr_comma_list _ ")" {% d => ({type: 'in', not: d[1], expressions: (d[6].expressions || [])}) %}
 
 between_predicate ->
-    pre_bit_expr (NOT __ | null) BETWEEN mid_bit_expr AND post_bit_expr
+    pre_bit_expr (NOT __ | null) BETWEEN mid_bit_expr AND post_bit_expr {%
+      d => ({
+        type: 'between',
+        value: d[0],
+        not: d[1],
+        lower: d[3],
+        upper: d[5]
+      })
+    %}
 
 mid_bit_expr ->
     "(" _ bit_expr _ ")" {% d => d[2] %}
@@ -224,61 +251,68 @@ mid_bit_expr ->
   | __ bit_expr __ {% d => d[1] %}
 
 like_predicate ->
-    pre_bit_expr (NOT __ | null) LIKE post_bit_expr
+    pre_bit_expr (NOT __ | null) LIKE post_bit_expr {%
+      d => ({
+        type: 'like',
+        not: d[1],
+        value: d[0],
+        comparison: d[3]
+      })
+    %}
 
 bit_expr ->
-    bit_expr _ "|" _ simple_expr
-  | bit_expr _ "&" _ simple_expr
-  | bit_expr _ "<<" _ simple_expr
-  | bit_expr _ ">>" _ simple_expr
-  | bit_expr _ "+" _ simple_expr
-  | bit_expr _ "-" _ simple_expr
-  | bit_expr _ "*" _ simple_expr
-  | bit_expr _ "/" _ simple_expr
-  | pre_bit_expr DIV post_simple_expr
-  | pre_bit_expr MOD post_simple_expr
-  | bit_expr _ "%" _ simple_expr
-  | bit_expr _ "^" _ simple_expr
-  | bit_expr _ "+" _ interval_expr
-  | bit_expr _ "-" _ interval_expr
-  | simple_expr
+    bit_expr _ "|" _ simple_expr {% opExpr('|') %}
+  | bit_expr _ "&" _ simple_expr {% opExpr('&') %}
+  | bit_expr _ "<<" _ simple_expr {% opExpr('<<') %}
+  | bit_expr _ ">>" _ simple_expr {% opExpr('>>') %}
+  | bit_expr _ "+" _ simple_expr {% opExpr('+') %}
+  | bit_expr _ "-" _ simple_expr {% opExpr('-') %}
+  | bit_expr _ "*" _ simple_expr {% opExpr('*') %}
+  | bit_expr _ "/" _ simple_expr {% opExpr('/') %}
+  | pre_bit_expr DIV post_simple_expr {% opExpr('DIV') %}
+  | pre_bit_expr MOD post_simple_expr {% opExpr('MOD') %}
+  | bit_expr _ "%" _ simple_expr {% opExpr('%') %}
+  | bit_expr _ "^" _ simple_expr {% opExpr('^') %}
+  | bit_expr _ "+" _ interval_expr {% opExpr('+') %}
+  | bit_expr _ "-" _ interval_expr {% opExpr('-') %}
+  | simple_expr {% d => d[0] %}
 
 pre_bit_expr ->
-    bit_expr __
-  | "(" _ bit_expr _ ")"
+    bit_expr __ {% d => d[0] %}
+  | "(" _ bit_expr _ ")" {% d => d[2] %}
 
 post_bit_expr ->
-    __ bit_expr
-  | "(" _ bit_expr _ ")"
+    __ bit_expr {% d => d[1] %}
+  | "(" _ bit_expr _ ")" {% d => d[2] %}
 
 simple_expr ->
-    literal
-  | identifier
-  | function_call
+    literal {% d => d[0] %}
+  | identifier {% d => d[0] %}
+  | function_call {% d => d[0] %}
   # | simple_expr COLLATE
-  | "(" _ expr_comma_list _ ")"
-  | subquery
-  | EXISTS _ subquery
-  | case_statement
-  | if_statement
-  | cast_statement
-  | convert_statement
-  | identifier "." identifier
+  | "(" _ expr_comma_list _ ")" {% d => d[2] %}
+  | subquery {% d => d[0] %}
+  | EXISTS _ subquery {% d => ({type: 'exists', query: d[2]}) %}
+  | case_statement {% d => d[0] %}
+  | if_statement {% d => d[0] %}
+  | cast_statement {% d => d[0] %}
+  | convert_statement {% d => d[0] %}
+  | identifier "." identifier {% d => {type: 'dot_column'} %}
 
 post_simple_expr ->
-    __ simple_expr
-  | "(" _ simple_expr _ ")"
+    __ simple_expr {% d => d[1] %}
+  | "(" _ simple_expr _ ")" {% d => d[2] %}
 
 literal ->
-    string
-  | decimal
-  | NULLX
-  | TRUE
-  | FALSE
+    string {% d => d[0] %}
+  | decimal {% d => d[0] %}
+  | NULLX {% d => {type: 'null'} %}
+  | TRUE {% d => {type: 'true'} %}
+  | FALSE {% d => {type: 'false'} %}
 
 expr_comma_list ->
-    expr
-  | expr_comma_list _ "," _ expr
+    expr {% d => ({exprs: [d[0]]}) %}
+  | expr_comma_list _ "," _ expr {% d => ({exprs: (d[0].exprs||[]).concat(d[4])}) %}
 
 if_statement ->
     IF _ "(" _ expr _ "," _ expr _ "," _ expr _ ")" {%
@@ -381,15 +415,15 @@ date_unit ->
   | Y E A R "_" M O N T H
 
 function_call ->
-    function_identifier _ "(" _ "*" _ ")"
-  | function_identifier _ "(" _ DISTINCT __ column _ ")"
-  | function_identifier _ "(" _ ALL post_expr _ ")"
-  | function_identifier _ "()"
+    function_identifier _ "(" _ "*" _ ")" {% d => ({type:'function_call', name: d[0], select_all: true}) %}
+  | function_identifier _ "(" _ DISTINCT __ column _ ")" {% d => ({type: 'function_call', name: d[0], distinct: true, parameters: [d[6]]}) %}
+  | function_identifier _ "(" _ ALL post_expr _ ")" {% d => ({type: 'function_call', name: d[0], all: true, parameters: [d[5]]}) %}
+  | function_identifier _ "()" {% d => ({type: 'function_call', name: d[0], parameters: []}) %}
   | function_identifier _ "(" _ expr_comma_list _ ")" {%
     d => ({
       type: 'function',
       name: d[0],
-      parameters: (d[4].expressions||[]).map(drill)
+      parameters: (d[4].expressions||[])
     })
   %}
 
@@ -402,11 +436,12 @@ column ->
   | identifier __ AS __ identifier {% d => ({type: 'column', name: d[0].value, alias: d[2].value}) %}
 
 identifier ->
-    btstring {% d => ({value:d[0]}) %}
+    btstring {% d => ({type: 'identifier', value:d[0]}) %}
+  | "[" ([^\]] | "\\]"):+ "]" {% d => ({type: 'identifier', value: d[1].map(x => x[0])}) %}
   | [a-z] [a-zA-Z0-9_]:* {% (d,l,reject) => {
     const value = d[0] + d[1].join('');
     if(reserved.indexOf(value.toUpperCase()) != -1) return reject;
-    return {value: value};
+    return {type: 'identifier', value: value};
   } %}
 
 function_identifier ->

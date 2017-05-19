@@ -79,6 +79,9 @@ const tests = [
   },
   {
     sql: 'select case "test" when "test" then 1 else 3 end'
+  },
+  {
+    sql: 'select [order] from [test]'
   }
 ];
 
