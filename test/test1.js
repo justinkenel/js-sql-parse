@@ -42,7 +42,18 @@ const tests = [
     sql: 'select case when true then case when true then 1 end end as `v` from `test_table`'
   },
   {
-    sql: 'select x, sum(1) AS `count` from y left join x on (a.foo=b.foo)'
+    sql: 'select x, sum(1) AS \`count\` from y left join x on (a.foo=b.foo)',
+    expected: {
+      joins: [
+        {
+          right: {type: 'table', table: 'x'},
+          columns: [
+            {name: 'foo', type: 'column', table:'a'},
+            {name: 'foo', type: 'column', table:'b'}
+          ]
+        }
+      ]
+    }
   },
   {
     sql: 'select x from ((test))',

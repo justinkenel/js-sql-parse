@@ -4,7 +4,8 @@ const grammar = require('./sql-parse');
 let count=0;
 function walk(obj, fn) {
   if(!obj) return;
-  fn(obj);
+  const result = fn(obj);
+  if(result == false) return;
   if(typeof obj == 'object') {
     for(i in obj) {
       walk(obj[i], fn);
@@ -29,8 +30,23 @@ module.exports = {
     const result = parsedResult[0];
 
     const referencedTables = {};
+    const joins = [];
     walk(result, node => {
       if(node.type == 'table') referencedTables[node.table] = node;
+      if(node.type == 'table_ref' && node.on) {
+        const columns = [];
+        walk(node.on, n => {
+          if(n.type == 'table_ref') return false;
+          if(n.type == 'column') {
+            columns.push(n);
+            return false;
+          }
+        });
+        joins.push({
+          right: node.right,
+          columns: columns
+        });
+      }
     });
 
     const operation = result.type;
@@ -48,7 +64,8 @@ module.exports = {
       createdTables: createdTables,
       sourceTables: sourceTables,
       operation: operation,
-      parsed: result
+      parsed: result,
+      joins: joins
     };
   }
 };

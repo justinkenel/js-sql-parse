@@ -164,6 +164,16 @@ function opExpr(operator) {
   });
 }
 
+function opExprWs(operator) {
+  return d => ({
+    type: 'operator',
+    operator: operator,
+    left: d[0],
+    right: d[4]
+  });
+}
+
+
 function notOp(d) {
   return {
     type: 'operator',
@@ -202,7 +212,7 @@ mid_expr ->
 boolean_primary ->
     pre_boolean_primary IS (__ NOT | null) __ NULLX {% d => ({type: 'is_null', not: d[2], value:d[0]}) %}
   | boolean_primary "<=>" predicate {% opExpr('<=>') %}
-  | boolean_primary _ comparison_type _ predicate {% d => (opExpr(d[2]))(d) %}
+  | boolean_primary _ comparison_type _ predicate {% d => (opExpr(d[2]))([d[0], null, d[4]]) %}
   | boolean_primary _ comparison_type _ (ANY | ALL) subquery
   | predicate {% d => d[0] %}
 
@@ -261,20 +271,20 @@ like_predicate ->
     %}
 
 bit_expr ->
-    bit_expr _ "|" _ simple_expr {% opExpr('|') %}
-  | bit_expr _ "&" _ simple_expr {% opExpr('&') %}
-  | bit_expr _ "<<" _ simple_expr {% opExpr('<<') %}
-  | bit_expr _ ">>" _ simple_expr {% opExpr('>>') %}
-  | bit_expr _ "+" _ simple_expr {% opExpr('+') %}
-  | bit_expr _ "-" _ simple_expr {% opExpr('-') %}
-  | bit_expr _ "*" _ simple_expr {% opExpr('*') %}
-  | bit_expr _ "/" _ simple_expr {% opExpr('/') %}
+    bit_expr _ "|" _ simple_expr {% opExprWs('|') %}
+  | bit_expr _ "&" _ simple_expr {% opExprWs('&') %}
+  | bit_expr _ "<<" _ simple_expr {% opExprWs('<<') %}
+  | bit_expr _ ">>" _ simple_expr {% opExprWs('>>') %}
+  | bit_expr _ "+" _ simple_expr {% opExprWs('+') %}
+  | bit_expr _ "-" _ simple_expr {% opExprWs('-') %}
+  | bit_expr _ "*" _ simple_expr {% opExprWs('*') %}
+  | bit_expr _ "/" _ simple_expr {% opExprWs('/') %}
   | pre_bit_expr DIV post_simple_expr {% opExpr('DIV') %}
   | pre_bit_expr MOD post_simple_expr {% opExpr('MOD') %}
-  | bit_expr _ "%" _ simple_expr {% opExpr('%') %}
-  | bit_expr _ "^" _ simple_expr {% opExpr('^') %}
-  | bit_expr _ "+" _ interval_expr {% opExpr('+') %}
-  | bit_expr _ "-" _ interval_expr {% opExpr('-') %}
+  | bit_expr _ "%" _ simple_expr {% opExprWs('%') %}
+  | bit_expr _ "^" _ simple_expr {% opExprWs('^') %}
+  | bit_expr _ "+" _ interval_expr {% opExprWs('+') %}
+  | bit_expr _ "-" _ interval_expr {% opExprWs('-') %}
   | simple_expr {% d => d[0] %}
 
 pre_bit_expr ->
@@ -297,7 +307,7 @@ simple_expr ->
   | if_statement {% d => d[0] %}
   | cast_statement {% d => d[0] %}
   | convert_statement {% d => d[0] %}
-  | identifier "." identifier {% d => {type: 'dot_column'} %}
+  | identifier "." identifier {% d => ({type: 'column', table: d[0].value, name: d[2].value}) %}
 
 post_simple_expr ->
     __ simple_expr {% d => d[1] %}
