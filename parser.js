@@ -13,7 +13,7 @@ function walk(obj, fn) {
   }
 }
 
-module.exports = function(options) {
+function parserDefinition(options) {
 options = options || {};
 options.stringEscape=options.stringEscape || (x=>'"'+x+'"');
 options.identifierEscape=options.identifierEscape || (x=>'`'+x+'`');
@@ -318,3 +318,9 @@ return {
     };
   }
 };};
+
+const basicParser=parserDefinition({});
+parserDefinition.parse=function(sql){return basicParser.parse(sql);}
+parserDefinition.toSql=function(parsed){return basicParser.toSql(parsed);}
+
+module.exports=parserDefinition;
