@@ -40,8 +40,8 @@ query_spec ->
   | SELECT (__ all_distinct __ | __) selection  {%
       d => ({
         type: 'select',
-        all_distinct: (d[2]||[])[1],
-        selection: d[3]
+        all_distinct: (d[1]||[])[1],
+        selection: d[2]
       })
     %}
   | SELECT (__ all_distinct __ | __) selection __ table_exp {%
@@ -64,7 +64,7 @@ table_exp ->
     from_clause (__ where_clause | null) (__ group_by_clause | null) (__ having_clause | null) (__ order_clause | null) {%
       d => ({
         type: 'from_table',
-        from: drill(d[0]),
+        from: d[0],
         where: (d[1] || [])[1],
         groupby: (d[2] || [])[1],
         having: (d[3] || [])[1],
@@ -77,8 +77,8 @@ all_distinct ->
   | DISTINCT {% d => ({type: 'distinct'}) %}
 
 from_clause ->
-    FROM __ table_ref_commalist {% d => d[2] %}
-  | FROM __ subquery {% d => d[2] %}
+    FROM __ table_ref_commalist {% d => ({type: 'from', table_refs: d[2].table_refs}) %}
+  | FROM __ subquery {% d => ({type: 'from', subquery: d[2]}) %}
 
 group_by_clause ->
     GROUP __ BY __ selection_column_comma_list {% d => ({ type: 'group_by', columns: d[4] }) %}
@@ -89,9 +89,10 @@ selection ->
   | selection_column_comma_list {% d => d[0] %}
 
 selection_column_comma_list ->
-    selection_column {% d => ({columns: [d[0]]}) %}
+    selection_column {% d => ({type: 'selection_columns', columns: [d[0]]}) %}
   | selection_column_comma_list _ "," _ selection_column {%
       d => ({
+        type: 'selection_columns',
         columns: (d[0].columns||[]).concat([d[4]])
       })
     %}
@@ -140,7 +141,7 @@ order_clause ->
   | ORDER __ BY "(" _ order_statement_comma_list _ ")" {% d => ({type: 'order', order: d[5].order}) %}
 
 order_statement_comma_list ->
-    order_statement {% d => ({order: d[0]}) %}
+    order_statement {% d => ({order: [d[0]]}) %}
   | order_statement_comma_list _ "," _ order_statement {%
       d => ({order: (d[0].order||[]).concat(d[4])})
     %}
@@ -240,8 +241,18 @@ predicate ->
   | bit_expr {% d => d[0] %}
 
 in_predicate ->
-    pre_bit_expr (NOT __ | null) IN _ subquery {% d => ({type:'in', not: d[1], subquery: d[4]}) %}
-  | pre_bit_expr (NOT __ | null) IN _ "(" _ expr_comma_list _ ")" {% d => ({type: 'in', not: d[1], expressions: (d[6].expressions || [])}) %}
+    pre_bit_expr (NOT __ | null) IN _ subquery {% d => ({
+      type:'in',
+      value: d[0],
+      not: d[1],
+      subquery: d[4]
+    }) %}
+  | pre_bit_expr (NOT __ | null) IN _ "(" _ expr_comma_list _ ")" {% d => ({
+      type: 'in',
+      value: d[0],
+      not: d[1],
+      expressions: (d[6].expressions || [])
+    }) %}
 
 between_predicate ->
     pre_bit_expr (NOT __ | null) BETWEEN mid_bit_expr AND post_bit_expr {%
@@ -315,14 +326,14 @@ post_simple_expr ->
 
 literal ->
     string {% d => d[0] %}
-  | decimal {% d => d[0] %}
-  | NULLX {% d => {type: 'null'} %}
-  | TRUE {% d => {type: 'true'} %}
-  | FALSE {% d => {type: 'false'} %}
+  | decimal {% d => ({type: 'decimal', value: d[0]}) %}
+  | NULLX {% d => ({type: 'null'}) %}
+  | TRUE {% d => ({type: 'true'}) %}
+  | FALSE {% d => ({type: 'false'}) %}
 
 expr_comma_list ->
-    expr {% d => ({exprs: [d[0]]}) %}
-  | expr_comma_list _ "," _ expr {% d => ({exprs: (d[0].exprs||[]).concat(d[4])}) %}
+    expr {% d => ({type:'expr_comma_list', exprs: [d[0]]}) %}
+  | expr_comma_list _ "," _ expr {% d => ({type:'expr_comma_list', exprs: (d[0].exprs||[]).concat(d[4])}) %}
 
 if_statement ->
     IF _ "(" _ expr _ "," _ expr _ "," _ expr _ ")" {%
@@ -330,7 +341,7 @@ if_statement ->
         type: 'if',
         condition: d[4],
         then: d[8],
-        'else': (d[10]||[])[1]
+        'else': d[12]
       })
     %}
 
@@ -340,8 +351,8 @@ case_statement ->
     CASE (__ | mid_expr) when_statement_list (__ ELSE __ expr __ | __) END {%
       d => ({
         type: 'case',
-        match: d[1],
-        when_statements: d[2],
+        match: d[1][0],
+        when_statements: d[2].statements,
         'else': (d[3]||[])[3]
       })
     %}
@@ -349,7 +360,7 @@ case_statement ->
 when_statement_list ->
     when_statement {% d => ({statements: [d[0]]}) %}
   | when_statement_list __ when_statement {% d => ({
-      columns: (d[0].statements||[]).concat([d[2]])
+      statements: (d[0].statements||[]).concat([d[2]])
     })
   %}
 
@@ -388,21 +399,41 @@ cast_statement ->
       d => ({
         type: 'cast',
         value: d[4],
-        type: d[8]
+        data_type: d[8]
       })
     %}
 
+@{%
+function dataType(data_type, size) {
+  return {
+    type: 'data_type',
+    data_type: data_type,
+    size: size && size[1]
+  }
+}
+%}
+
 data_type ->
-    B I N A R Y  ("[" int  "]" | null )
-  | C H A R  ("[" int  "]" | null )
-  | D A T E
-  | D E C I M A L  ("[" int  "]" | null )
-  | N C H A R
-  | S I G N E D
-  | T I M E
-  | U N S I G N E D
+    B I N A R Y  ("(" int  ")" | null ) {% d => dataType('binary', d[6]) %}
+  | C H A R  ("(" int  ")" | null ) {% d => dataType('char', d[4]) %}
+  | D A T E {% d => dataType('date') %}
+  | D E C I M A L  ("(" int  ")" | null ) {% d => dataType('decimal', d[7]) %}
+  | D E C I M A L  ("(" int (__|null) "," (__|null) int  ")" | null ) {% d => ({
+      type: 'data_type',
+      data_type: 'decimal',
+      size1: d[7][1],
+      size2: d[7][5]
+    }) %}
+  | N C H A R {% d => dataType('nchar') %}
+  | S I G N E D {% d => dataType('signed') %}
+  | T I M E {% d => dataType('time') %}
+  | U N S I G N E D {% d => dataType('unsigned') %}
+
 
 date_unit ->
+  date_unit_internal {% d => ({type: 'date_unit', date_unit: d[0].join('')}) %}
+
+date_unit_internal ->
     M I C R O S E C O N D
   | S E C O N D
   | M I N U T E
@@ -425,17 +456,33 @@ date_unit ->
   | Y E A R "_" M O N T H
 
 function_call ->
-    function_identifier _ "(" _ "*" _ ")" {% d => ({type:'function_call', name: d[0], select_all: true}) %}
-  | function_identifier _ "(" _ DISTINCT __ column _ ")" {% d => ({type: 'function_call', name: d[0], distinct: true, parameters: [d[6]]}) %}
-  | function_identifier _ "(" _ ALL post_expr _ ")" {% d => ({type: 'function_call', name: d[0], all: true, parameters: [d[5]]}) %}
-  | function_identifier _ "()" {% d => ({type: 'function_call', name: d[0], parameters: []}) %}
-  | function_identifier _ "(" _ expr_comma_list _ ")" {%
-    d => ({
-      type: 'function',
+    function_identifier _ "(" _ "*" _ ")" {% d => ({
+      type:'function_call',
       name: d[0],
-      parameters: (d[4].expressions||[])
-    })
-  %}
+      select_all: true
+    }) %}
+  | function_identifier _ "(" _ DISTINCT __ column _ ")" {% d => ({
+      type: 'function_call',
+      name: d[0],
+      distinct: true,
+      parameters: [d[6]]
+    })%}
+  | function_identifier _ "(" _ ALL post_expr _ ")" {% d => ({
+      type: 'function_call',
+      name: d[0],
+      all: true,
+      parameters: [d[5]]
+    })%}
+  | function_identifier _ "()" {% d => ({
+      type: 'function_call',
+      name: d[0],
+      parameters: []
+    })%}
+  | function_identifier _ "(" _ expr_comma_list _ ")" {% d => ({
+      type: 'function_call',
+      name: d[0],
+      parameters: (d[4].exprs)
+    })%}
 
 string ->
     dqstring {% d => ({type: 'string', string: d[0]}) %}
@@ -447,7 +494,7 @@ column ->
 
 identifier ->
     btstring {% d => ({type: 'identifier', value:d[0]}) %}
-  | "[" ([^\]] | "\\]"):+ "]" {% d => ({type: 'identifier', value: d[1].map(x => x[0])}) %}
+  | "[" ([^\]] | "\\]"):+ "]" {% d => ({type: 'identifier', value: d[1].map(x => x[0]).join('')}) %}
   | [a-z] [a-zA-Z0-9_]:* {% (d,l,reject) => {
     const value = d[0] + d[1].join('');
     if(reserved.indexOf(value.toUpperCase()) != -1) return reject;
