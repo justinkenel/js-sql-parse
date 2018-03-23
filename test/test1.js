@@ -155,6 +155,18 @@ const tests = [
   {
     sql: "select count(*) as count, FROM_DAYS(TO_DAYS(`modified_at`)-MOD(TO_DAYS(`modified_at`) -1, 7)) as ts from job group by ts",
     toSql: '(select count(*) as `count`, FROM_DAYS((TO_DAYS(`modified_at`) - MOD((TO_DAYS(`modified_at`) - 1), 7))) as `ts` from (`job`) group by (`ts`))'
+  },
+  {
+    sql: "select cast(x as float)",
+    toSql: '(select cast(`x` as float))'
+  },
+  {
+    sql: "select top 10 x from test_table",
+    toSql: "(select top 10 `x` from (`test_table`))"
+  },
+  {
+    sql: "select cast(x as decimal) as y",
+    toSql: "(select cast(`x` as decimal) as `y`)"
   }
 ];
 

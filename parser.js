@@ -35,6 +35,7 @@ return {
     }
     case 'select': {
       let sql='(select ';
+      if(parsed.top) sql+='top '+parsed.top+' ';
       if(parsed.all_distinct) sql+=this.toSql(parsed.all)+' ';
       let selection;
       if(parsed.selection.columns) selection=parsed.selection.columns.map(x=>this.toSql(x)).join(', ');

@@ -35,21 +35,25 @@ manipulative_statement ->
 select_statement ->
     query_spec {% d => d[0] %}
 
+top_spec -> TOP __ int {% d => d[2] %}
+
 query_spec ->
     "(" _ query_spec _ ")" {% d => d[2] %}
-  | SELECT (__ all_distinct __ | __) selection  {%
+  | SELECT (__ top_spec | null) (__ all_distinct __ | __) selection  {%
       d => ({
         type: 'select',
-        all_distinct: (d[1]||[])[1],
-        selection: d[2]
+        top: (d[1]||[])[1],
+        all_distinct: (d[2]||[])[1],
+        selection: d[3]
       })
     %}
-  | SELECT (__ all_distinct __ | __) selection __ table_exp {%
+  | SELECT (__ top_spec | null) (__ all_distinct __ | __) selection __ table_exp {%
       d => ({
         type: 'select',
-        all_distinct: (d[1]||[])[1],
-        selection: d[2],
-        table_exp: d[4]
+        top: (d[1]||[])[1],
+        all_distinct: (d[2]||[])[1],
+        selection: d[3],
+        table_exp: d[5]
       })
     %}
   | query_spec __ UNION __ query_spec {%
@@ -413,17 +417,21 @@ function dataType(data_type, size) {
 }
 %}
 
+DECIMAL -> D E C I M A L
+
 data_type ->
     B I N A R Y  ("(" int  ")" | null ) {% d => dataType('binary', d[6]) %}
   | C H A R  ("(" int  ")" | null ) {% d => dataType('char', d[4]) %}
   | D A T E {% d => dataType('date') %}
-  | D E C I M A L  ("(" int  ")" | null ) {% d => dataType('decimal', d[7]) %}
-  | D E C I M A L  ("(" int (__|null) "," (__|null) int  ")" | null ) {% d => ({
+  | DECIMAL {% d => dataType('decimal') %}
+  | DECIMAL "(" (__|null) int (__|null) ")" {% d => dataType('decimal', [0,d[3]]) %}
+  | DECIMAL "(" (__|null) int (__|null) "," (__|null) int  ")" {% d => ({
       type: 'data_type',
       data_type: 'decimal',
-      size1: d[7][1],
-      size2: d[7][5]
+      size1: d[3],
+      size2: d[7]
     }) %}
+  | F L O A T {% d => dataType('float') %}
   | N C H A R {% d => dataType('nchar') %}
   | S I G N E D {% d => dataType('signed') %}
   | T I M E {% d => dataType('time') %}
@@ -596,6 +604,7 @@ SELECT -> [Ss] [Ee] [Ll] [Ee] [Cc] [Tt]
 SOME -> [Ss] [Oo] [Mm] [Ee]
 
 THEN -> [Tt] [Hh] [Ee] [Nn]
+TOP -> T O P
 TRUE -> [Tt] [Rr] [Uu] [Ee]
 
 UNION -> [Uu] [Nn] [Ii] [Oo] [Nn]
