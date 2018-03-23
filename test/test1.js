@@ -142,6 +142,15 @@ const tests = [
   {
     sql: 'select * from x order by a, b asc',
     toSql: '(select * from (`x`) order by (`a`, `b` asc))'
+  },
+  // handle different cases in function identifiers, and regular identifiers
+  {
+    sql: 'select dAte() as x',
+    toSql: '(select dAte() as `x`)'
+  },
+  {
+    sql: 'select DaTe() as X',
+    toSql: '(select DaTe() as `X`)'
   }
 ];
 
