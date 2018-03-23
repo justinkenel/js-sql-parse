@@ -10,7 +10,7 @@
   }
 
   const reserved=require('./reserved.json');
-  const valid_function_identifiers=['LEFT','RIGHT','REPLACE']
+  const valid_function_identifiers=['LEFT','RIGHT','REPLACE','MOD']
 %}
 
 main -> sql (_ ";" | null) {% d => d[0] %}

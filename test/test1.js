@@ -151,6 +151,10 @@ const tests = [
   {
     sql: 'select DaTe() as X',
     toSql: '(select DaTe() as `X`)'
+  },
+  {
+    sql: "select count(*) as count, FROM_DAYS(TO_DAYS(`modified_at`)-MOD(TO_DAYS(`modified_at`) -1, 7)) as ts from job group by ts",
+    toSql: '(select count(*) as `count`, FROM_DAYS((TO_DAYS(`modified_at`) - MOD((TO_DAYS(`modified_at`) - 1), 7))) as `ts` from (`job`) group by (`ts`))'
   }
 ];
 
