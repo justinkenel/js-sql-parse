@@ -300,6 +300,7 @@ bit_expr ->
   | bit_expr _ "^" _ simple_expr {% opExprWs('^') %}
   | bit_expr _ "+" _ interval_expr {% opExprWs('+') %}
   | bit_expr _ "-" _ interval_expr {% opExprWs('-') %}
+  | interval_expr {% d => d[0] %}
   | simple_expr {% d => d[0] %}
 
 pre_bit_expr ->

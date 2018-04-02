@@ -167,6 +167,10 @@ const tests = [
   {
     sql: "select cast(x as decimal) as y",
     toSql: "(select cast(`x` as decimal) as `y`)"
+  },
+  {
+    sql: 'select x.y>DATE_SUB(CURDATE(),INTERVAL 7 day)',
+    toSql: "(select (`x`.`y` > DATE_SUB(CURDATE(), interval 7 day)))"
   }
 ];
 
