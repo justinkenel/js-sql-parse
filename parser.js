@@ -66,7 +66,9 @@ return {
     case 'all': return 'all';
     case 'distinct': return 'distinct';
     case 'group_by': {
-      return 'group by ('+this.toSql(parsed.columns)+')';
+      let sql='group by ('+this.toSql(parsed.columns)+')';
+			if(parsed.with_rollup) sql+= ' with rollup';
+			return sql;
     }
     case 'select_all': return '*';
     case 'column': {

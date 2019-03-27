@@ -86,6 +86,10 @@ from_clause ->
   | FROM __ subquery {% d => ({type: 'from', subquery: d[2]}) %}
 
 group_by_clause ->
+		group_by_clause_inner {% d => d[0] %}
+	| group_by_clause_inner __ WITH __ ROLLUP {% d => Object.assign({}, d[0], {with_rollup:true}) %}
+
+group_by_clause_inner ->
     GROUP __ BY __ selection_column_comma_list {% d => ({ type: 'group_by', columns: d[4] }) %}
   | GROUP __ BY "(" _ selection_column_comma_list _ ")" {% d => ({ type: 'group_by', columns: d[6] }) %}
 
@@ -550,6 +554,9 @@ strescape -> ["\\/bfnrt] {% id %}
 %}
 
 ### Keywords
+
+ROLLUP -> R O L L U P
+WITH -> W I T H
 
 AND -> [Aa] [Nn] [Dd]
 ANY -> [Aa] [Nn] [Yy]

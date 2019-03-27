@@ -171,7 +171,11 @@ const tests = [
   {
     sql: 'select x.y>DATE_SUB(CURDATE(),INTERVAL 7 day)',
     toSql: "(select (`x`.`y` > DATE_SUB(CURDATE(), interval 7 day)))"
-  }
+  },
+	{
+		sql: `select x, sum(y), count(*) from test group by x, sum(y) with rollup`,
+		toSql: '(select `x`, sum(`y`), count(*) from (`test`) group by (`x`, sum(`y`)) with rollup)'
+	}
 ];
 
 const parser = require('../parser')();
