@@ -180,7 +180,7 @@ const tests = [
     toSql: "(select cast(`x` as decimal) as `y`)"
   },
   {
-    sql: 'select x.y>DATE_SUB(CURDATE(),INTERVAL 7 day)',
+    sql: 'select x.y>DATE_SUB(CURDATE(),INTERVAL 7 day) -- comments',
     toSql: "(select (`x`.`y` > DATE_SUB(CURDATE(), interval 7 day)))"
   },
 	{
@@ -188,7 +188,7 @@ const tests = [
 		toSql: '(select `x`, sum(`y`), count(*) from (`test`) group by (`x`, sum(`y`)) with rollup)'
 	},
 	{
-		sql: `select a.x,b.y from a left join (select x,y from c) b on a.x=b.x`.trim(),
+		sql: `select a.x,b.y from a left join (select x,y from c) b on a.x=b.x`,
 		toSql: '(select `a`.`x`, `b`.`y` from ((`a` left join (select `x`, `y` from (`c`)) on (`a`.`x` = `b`.`x`)) as `b`))',
 		expected: {
 			sourceTables: ['a','c']
