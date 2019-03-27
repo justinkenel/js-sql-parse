@@ -672,6 +672,6 @@ __ ->
 	| wschar:+ comment {% function(d) {return null;} %}
 
 comment ->
-	("#" | "--") wschar [^\n]:+ ([\n]) {% x => null %}
+	("#" | "--" wschar) [^\n]:+ ([\n]) {% x => null %}
 
 wschar -> [ \t\n\v\f] {% id %}

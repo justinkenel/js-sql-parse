@@ -180,6 +180,10 @@ const tests = [
     toSql: "(select cast(`x` as decimal) as `y`)"
   },
   {
+    sql: "select cast(x as decimal) as y#comment",
+    toSql: "(select cast(`x` as decimal) as `y`)"
+  },
+  {
     sql: 'select x.y>DATE_SUB(CURDATE(),INTERVAL 7 day) -- comments',
     toSql: "(select (`x`.`y` > DATE_SUB(CURDATE(), interval 7 day)))"
   },
