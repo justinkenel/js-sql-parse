@@ -175,6 +175,13 @@ const tests = [
 	{
 		sql: `select x, sum(y), count(*) from test group by x, sum(y) with rollup`,
 		toSql: '(select `x`, sum(`y`), count(*) from (`test`) group by (`x`, sum(`y`)) with rollup)'
+	},
+	{
+		sql: `select a.x,b.y from a left join (select x,y from c) b on a.x=b.x`.trim(),
+		toSql: '(select `a`.`x`, `b`.`y` from ((`a` left join (select `x`, `y` from (`c`)) on (`a`.`x` = `b`.`x`)) as `b`))',
+		expected: {
+			sourceTables: ['a','c']
+		}
 	}
 ];
 

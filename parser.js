@@ -91,7 +91,9 @@ return {
       if(parsed.side) sql+=' '+parsed.side+' ';
       sql+='join '+this.toSql(parsed.right);
       if(parsed.on) sql+=' on '+this.toSql(parsed.on);
-      return sql+')';
+			sql+=')';
+			if(parsed.alias) sql += ' as '+this.toSql(parsed.alias);
+      return sql;
     }
     case 'table': {
       let sql=options.identifierEscape(parsed.table);

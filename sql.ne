@@ -115,22 +115,27 @@ table_ref_commalist ->
   | table_ref_commalist _ "," _ table_ref {% d => ({ table_refs: (d[0].table_refs||[]).concat(d[4]) }) %}
 
 @{%
-  function tableRef(d) {
-    return {
+  function tableRef(d, onOffset) {
+		if(!onOffset) onOffset = 0;
+    const ref = {
       type: 'table_ref',
       side: ((d[1]||[])[1]),
       left: d[0],
       right: d[4],
-      on: d[8]
+      on: d[onOffset+8]
     };
+		if(onOffset) ref.alias = d[6];
+		return ref;
   }
 %}
 
 table_ref ->
     "(" _ table_ref _ ")" {% d => d[2] %}
   | table {% d => d[0] %}
-  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ expr {% tableRef %}
-  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON ("(" _ expr _ ")") {% tableRef %}
+  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON __ expr {% x=>tableRef(x,0) %}
+  | table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ table __ ON ("(" _ expr _ ")") {% x=>tableRef(x,0) %}
+	| table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ query_spec (AS __ | __) identifier __ ON __ expr {% x=>tableRef(x,2) %}
+	| table_ref (__ LEFT __ | __ RIGHT __ | __ INNER __ | __) JOIN __ query_spec (AS __ | __) identifier __ ON ("(" _ expr _ ")") {% x=>tableRef(x,2) %}
 
 table ->
     identifier {% d => ({type: 'table', table: d[0].value}) %}
