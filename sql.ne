@@ -65,14 +65,15 @@ query_spec ->
     %}
 
 table_exp ->
-    from_clause (__ where_clause | null) (__ group_by_clause | null) (__ having_clause | null) (__ order_clause | null) {%
+    from_clause (__ where_clause | null) (__ group_by_clause | null) (__ having_clause | null) (__ order_clause | null) (__ limit_clause | null) {%
       d => ({
         type: 'from_table',
         from: d[0],
         where: (d[1] || [])[1],
         groupby: (d[2] || [])[1],
         having: (d[3] || [])[1],
-        order: (d[4] || [])[1]
+        order: (d[4] || [])[1],
+				limit: (d[5] || [])[1]
       })
     %}
 
@@ -154,6 +155,8 @@ order_statement ->
     expr {% d => ({type:'order_statement', value:d[0]}) %}
   | expr __ ASC {% d => ({type: 'order_statement', value: d[0], direction: 'asc'}) %}
   | expr __ DESC {% d => ({type: 'order_statement', value: d[0], direction: 'desc'}) %}
+
+limit_clause -> LIMIT __ decimal {% d => ({type: 'limit_statement', limit: d[2]}) %}
 
 column_ref ->
     expr {% d => ({type: 'column', expression: d[0]}) %}
@@ -587,6 +590,7 @@ JOIN -> [Jj] [Oo] [Ii] [Nn]
 
 LEFT -> [Ll] [Ee] [Ff] [Tt] {% d => 'left' %}
 LIKE -> [Ll] [Ii] [Kk] [Ee]
+LIMIT -> L I M I T
 
 MOD -> [Mm] [Oo] [Dd]
 
