@@ -8,6 +8,17 @@ const tests = [
       operation: 'select',
     },
     toSql: '(select * from (`test`))'
+  },{
+    sql: [
+			'select * # comments!',
+			'from -- more comments!',
+			'test -- hello'
+		].join('\n'),
+    expected: {
+      referencedTables: ['test'],
+      operation: 'select',
+    },
+    toSql: '(select * from (`test`))'
   },
   {
     sql: 'create or replace view test as select * from x',

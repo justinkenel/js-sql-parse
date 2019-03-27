@@ -244,6 +244,8 @@ return {
     return '-- Invalid sql.type: ' + parsed.type + '\n';
   },
   parse(sql) {
+		sql += '\n';
+
     const parser = new nearley.Parser(grammar.ParserRules, grammar.ParserStart);
     const parsed = parser.feed(sql);
 

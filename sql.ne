@@ -1,6 +1,6 @@
 
 
-@builtin "whitespace.ne"
+# @builtin "whitespace.ne"
 @builtin "number.ne"
 
 @{%
@@ -13,7 +13,7 @@
   const valid_function_identifiers=['LEFT','RIGHT','REPLACE','MOD']
 %}
 
-main -> sql (_ ";" | null) {% d => d[0] %}
+main -> sql (_ ";" | _) {% d => d[0] %}
 
 sql ->
     manipulative_statement {% d => d[0] %}
@@ -661,3 +661,17 @@ W -> "W" | "w"
 X -> "X" | "x"
 Y -> "Y" | "y"
 Z -> "Z" | "z"
+
+# Replacing whitespace.ne - need to in order to support comments
+# Whitespace: `_` is optional, `__` is mandatory.
+_  ->
+		wschar:* {% function(d) {return null;} %}
+	| wschar:* comment {% function(d) {return null;} %}
+__ ->
+		wschar:+ {% function(d) {return null;} %}
+	| wschar:+ comment {% function(d) {return null;} %}
+
+comment ->
+	("#" | "--") wschar [^\n]:+ ([\n]) {% x => null %}
+
+wschar -> [ \t\n\v\f] {% id %}
