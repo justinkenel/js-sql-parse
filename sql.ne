@@ -13,7 +13,7 @@
   const valid_function_identifiers=['LEFT','RIGHT','REPLACE','MOD']
 %}
 
-main -> sql (_ ";" | _) {% d => d[0] %}
+main -> sql (_ ";" _| _) {% d => d[0] %}
 
 sql ->
     manipulative_statement {% d => d[0] %}
