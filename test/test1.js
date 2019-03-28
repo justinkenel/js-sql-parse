@@ -197,10 +197,14 @@ const tests = [
 	},
 	{
 		sql: `select a.x,b.y from a left join (select x,y from c) b on a.x=b.x`,
-		toSql: '(select `a`.`x`, `b`.`y` from ((`a` left join (select `x`, `y` from (`c`)) on (`a`.`x` = `b`.`x`)) as `b`))',
+		toSql: '(select `a`.`x`, `b`.`y` from ((`a` left join (select `x`, `y` from (`c`)) as `b` on (`a`.`x` = `b`.`x`))))',
 		expected: {
 			sourceTables: ['a','c']
 		}
+	},
+	{
+		sql: `select a.x, b.y from a left join b using (x)`,
+		toSql: '(select `a`.`x`, `b`.`y` from ((`a` left join `b` using (`x`))))'
 	}
 ];
 

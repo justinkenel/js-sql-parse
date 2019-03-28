@@ -90,9 +90,13 @@ return {
       let sql='('+this.toSql(parsed.left);
       if(parsed.side) sql+=' '+parsed.side+' ';
       sql+='join '+this.toSql(parsed.right);
-      if(parsed.on) sql+=' on '+this.toSql(parsed.on);
-			sql+=')';
+
 			if(parsed.alias) sql += ' as '+this.toSql(parsed.alias);
+
+			if(parsed.using) sql += ' using (' + parsed.on.map(x=>this.toSql(x)).join(',') + ')';
+      else if(parsed.on) sql+=' on '+this.toSql(parsed.on);
+
+			sql+=')';
       return sql;
     }
     case 'table': {
