@@ -9,6 +9,25 @@ const tests = [
     },
     toSql: '(select * from (`test`))'
   },{
+    sql: 'select x from test',
+    toSql: '(select `x` from (`test`))',
+		expected: {
+			returnColumns: [{
+				expression: {
+					type: 'identifier',
+					value: 'x'
+				},
+				mappedTo: {
+					column: 'x'
+				},
+				name: '`x`',
+				sourceColumns: [{
+					type: 'identifier',
+					value: 'x'
+				}]
+			}]
+		}
+  },{
     sql: [
 			'select * # comments!',
 			'from -- more comments!',

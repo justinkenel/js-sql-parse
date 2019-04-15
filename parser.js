@@ -309,10 +309,20 @@ return {
           });
           let name;
           if(column.alias) name=column.alias.value;
-          else name=column.expression;
+          else name=this.toSql(column.expression);
+
+					let mappedTo;
+					if(column.expression.type == 'identifier') {
+						mappedTo = {column: column.expression.value};
+					} else if (column.expression.type == 'column') {
+						mappedTo = {column: column.expression.name, table: column.expression.table};
+					}
+
           returnColumns.push({
             name: name,
-            sourceColumns: sourceColumns
+						expression: column.expression,
+            sourceColumns: sourceColumns,
+						mappedTo
           });
         });
       }
