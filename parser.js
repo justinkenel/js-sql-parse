@@ -316,7 +316,8 @@ return {
           });
           let name;
           if(column.alias) name=column.alias.value;
-          else name=this.toSql(column.expression);
+          else if(column.expression.type == 'identifier') name=column.expression.value;
+					else name=this.toSql(column.expression);
 
 					let mappedTo;
 					if(column.expression.type == 'identifier') {

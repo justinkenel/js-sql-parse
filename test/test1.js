@@ -20,7 +20,7 @@ const tests = [
 				mappedTo: {
 					column: 'x'
 				},
-				name: '`x`',
+				name: 'x',
 				sourceColumns: [{
 					type: 'identifier',
 					value: 'x'
@@ -248,6 +248,26 @@ const tests = [
 	{
 		sql:`select binary x=y from t`,
 		toSql: '(select (binary (`x`) = `y`) from (`t`))'
+	},
+	{
+		sql: `select a from b where d`,
+		toSql: '(select `a` from (`b`) where (`d`))',
+		expected: {
+			returnColumns: [{
+				expression: {
+					type: 'identifier',
+					value: 'a',
+				},
+				name: 'a',
+				mappedTo: {
+					column: 'a'
+				},
+				sourceColumns: [{
+					type: 'identifier',
+					value: 'a'
+				}]
+			}]
+		}
 	}
 ];
 
