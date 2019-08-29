@@ -264,8 +264,12 @@ return {
 
     const referencedTables = {};
     const joins = [];
+		const allTableReferences = [];
     walk(result, node => {
-      if(node.type == 'table') referencedTables[node.table] = node;
+      if(node.type == 'table') {
+				referencedTables[node.table] = node;
+				allTableReferences.push(node);
+			}
       if(node.type == 'table_ref' && node.on) {
         const columns = [];
         walk(node.on, n => {
@@ -328,8 +332,15 @@ return {
       }
     }
 
+		const aliases={};
+		allTableReferences.forEach(x => {
+			if(x.alias) aliases[x.alias] = x.table;
+			else aliases[x.table] = x.table;
+		});
+
     return {
       referencedTables: Object.keys(referencedTables),
+			aliases,
       createdTables: createdTables,
       sourceTables: sourceTables,
       operation: operation,

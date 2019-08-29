@@ -223,7 +223,23 @@ const tests = [
 	},
 	{
 		sql: `select a.x, b.y from a left join b using (x)`,
-		toSql: '(select `a`.`x`, `b`.`y` from ((`a` left join `b` using (`x`))))'
+		toSql: '(select `a`.`x`, `b`.`y` from ((`a` left join `b` using (`x`))))',
+		expected: {
+			aliases: {
+				a:'a',
+				b:'b'
+			}
+		}
+	},
+	{
+		sql: `select a.x, b.y from c as a left join d as b using (z)`,
+		toSql: '(select `a`.`x`, `b`.`y` from ((`c`as `a` left join `d`as `b` using (`z`))))',
+		expected: {
+			aliases: {
+				a:'c',
+				b:'d'
+			}
+		}
 	}
 ];
 
