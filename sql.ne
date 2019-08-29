@@ -675,10 +675,10 @@ Z -> "Z" | "z"
 # Whitespace: `_` is optional, `__` is mandatory.
 _  ->
 		wschar:* {% function(d) {return null;} %}
-	| wschar:* comment {% function(d) {return null;} %}
+	| wschar:* comment wschar:* {% function(d) {return null;} %}
 __ ->
 		wschar:+ {% function(d) {return null;} %}
-	| wschar:+ comment {% function(d) {return null;} %}
+	| wschar:+ comment wschar:* {% function(d) {return null;} %}
 
 comment ->
 	("#" | "--" wschar) [^\n]:+ ([\n]) {% x => null %}
