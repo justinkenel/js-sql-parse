@@ -250,6 +250,10 @@ const tests = [
 		toSql: '(select (binary (`x`) = `y`) from (`t`))'
 	},
 	{
+		sql: 'select x <=> z from y',
+		toSql: '(select (`x` <=> `z`) from (`y`))'
+	},
+	{
 		sql: `select a from b where d`,
 		toSql: '(select `a` from (`b`) where (`d`))',
 		expected: {
