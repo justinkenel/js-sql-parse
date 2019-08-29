@@ -44,6 +44,9 @@ return {
       if(parsed.table_exp) sql+=' '+this.toSql(parsed.table_exp);
       return sql+')';
     }
+		case 'binary_statement': {
+			return 'binary ('+this.toSql(parsed.expr)+')';
+		}
     case 'union': {
       const left=this.toSql(parsed.left);
       const right=this.toSql(parsed.right);

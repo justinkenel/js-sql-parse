@@ -341,6 +341,7 @@ simple_expr ->
   | subquery {% d => d[0] %}
   | EXISTS _ subquery {% d => ({type: 'exists', query: d[2]}) %}
   | case_statement {% d => d[0] %}
+	| BINARY __ simple_expr {% d => ({type: 'binary_statement', expr: d[2]}) %}
   | if_statement {% d => d[0] %}
   | cast_statement {% d => d[0] %}
   | convert_statement {% d => d[0] %}
@@ -360,6 +361,7 @@ literal ->
 expr_comma_list ->
     expr {% d => ({type:'expr_comma_list', exprs: [d[0]]}) %}
   | expr_comma_list _ "," _ expr {% d => ({type:'expr_comma_list', exprs: (d[0].exprs||[]).concat(d[4])}) %}
+
 
 if_statement ->
     IF _ "(" _ expr _ "," _ expr _ "," _ expr _ ")" {%
@@ -579,6 +581,7 @@ AS -> [Aa] [Ss]
 ASC -> [Aa] [Ss] [Cc]
 
 BETWEEN -> [Bb] [Ee] [Tt] [Ww] [Ee] [Ee] [Nn]
+BINARY -> B I N A R Y
 BY -> [Bb] [Yy]
 
 CASE -> [Cc] [Aa] [Ss] [Ee]

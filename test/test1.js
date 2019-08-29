@@ -240,9 +240,14 @@ const tests = [
 				b:'d'
 			}
 		}
-	},{
+	},
+	{
 		sql:'select x, y -- testing\n\tfrom x\n-- help',
 		toSql: '(select `x`, `y` from (`x`))'
+	},
+	{
+		sql:`select binary x=y from t`,
+		toSql: '(select (binary (`x`) = `y`) from (`t`))'
 	}
 ];
 
