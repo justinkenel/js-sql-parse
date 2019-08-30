@@ -288,6 +288,29 @@ const tests = [
 	{
 		sql: 'select a from b where (c or not d) and e is not null and f',
 		toSql: '(select `a` from (`b`) where ((((`c` or (not `d`)) and (`e` is not null)) and `f`)))'
+	},
+	{
+		sql: 'select a.x from b',
+		toSql: '(select `a`.`x` from (`b`))',
+		expected: {
+			returnColumns: [{
+				expression: {
+					type: 'column',
+					table: 'a',
+					name: 'x'
+				},
+				name: 'x',
+				mappedTo: {
+					column: 'x',
+					table: 'a'
+				},
+				sourceColumns: [{
+					type: 'column',
+					table: 'a',
+					name: 'x'
+				}]
+			}]
+		}
 	}
 ];
 
