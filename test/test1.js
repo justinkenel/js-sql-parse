@@ -272,6 +272,18 @@ const tests = [
 				}]
 			}]
 		}
+	},
+	{
+		sql: `select a from x where (z or not b)`,
+		toSql: '(select `a` from (`x`) where ((`z` or (not `b`))))'
+	},
+	{
+		sql: `select not a or b from x`,
+		toSql: '(select ((not `a`) or `b`) from (`x`))'
+	},
+	{
+		sql: `select not (a or b) from x`,
+		toSql: '(select (not (`a` or `b`)) from (`x`))'
 	}
 ];
 

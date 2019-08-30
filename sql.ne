@@ -216,8 +216,8 @@ expr ->
   | pre_expr XOR post_boolean_primary {% opExpr('xor') %}
   | pre_expr AND post_boolean_primary {% opExpr('and') %}
   | pre_expr "&&" post_boolean_primary {% opExpr('and') %}
-  | NOT post_boolean_primary {% notOp %}
-  | "!" post_boolean_primary {% notOp %}
+  # | NOT post_boolean_primary {% notOp %}
+  # | "!" post_boolean_primary {% notOp %}
   | pre_boolean_primary IS (__ NOT | null) __ (TRUE | FALSE | UNKNOWN)
   | boolean_primary {% d => d[0] %}
 
@@ -237,6 +237,8 @@ mid_expr ->
 
 boolean_primary ->
     pre_boolean_primary IS (__ NOT | null) __ NULLX {% d => ({type: 'is_null', not: d[2], value:d[0]}) %}
+	|	NOT post_boolean_primary {% notOp %}
+	|	"!" post_boolean_primary {% notOp %}
   | boolean_primary _ comparison_type _ predicate {% d => (opExpr(d[2]))([d[0], null, d[4]]) %}
   | boolean_primary _ comparison_type _ (ANY | ALL) subquery
   | predicate {% d => d[0] %}
