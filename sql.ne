@@ -210,16 +210,29 @@ function notOp(d) {
 %}
 
 # https://dev.mysql.com/doc/refman/5.7/en/expressions.html
-expr ->
-    pre_expr OR post_boolean_primary {% opExpr('or') %}
-  | pre_expr "||" post_boolean_primary {% opExpr('or') %}
-  | pre_expr XOR post_boolean_primary {% opExpr('xor') %}
-  | pre_expr AND post_boolean_primary {% opExpr('and') %}
-  | pre_expr "&&" post_boolean_primary {% opExpr('and') %}
-  # | NOT post_boolean_primary {% notOp %}
-  # | "!" post_boolean_primary {% notOp %}
+
+expr -> two_op_expr {% d => d[0] %}
+two_op_expr ->
+    pre_two_op_expr OR post_one_op_expr {% opExpr('or') %}
+  | pre_two_op_expr "||" post_one_op_expr {% opExpr('or') %}
+  | pre_two_op_expr XOR post_one_op_expr {% opExpr('xor') %}
+  | pre_two_op_expr AND post_one_op_expr {% opExpr('and') %}
+  | pre_two_op_expr "&&" post_one_op_expr {% opExpr('and') %}
+	| one_op_expr {% d => d[0] %}
+
+pre_two_op_expr ->
+    two_op_expr __ {% d => d[0] %}
+  | "(" _ two_op_expr _ ")" {% d => d[2] %}
+
+one_op_expr ->
+		NOT post_boolean_primary {% notOp %}
+  | "!" post_boolean_primary {% notOp %}
   | pre_boolean_primary IS (__ NOT | null) __ (TRUE | FALSE | UNKNOWN)
   | boolean_primary {% d => d[0] %}
+
+post_one_op_expr ->
+    __ one_op_expr {% d => d[1] %}
+  | "(" _ one_op_expr _ ")" {% d => d[2] %}
 
 pre_expr ->
     expr __ {% d => d[0] %}
@@ -237,8 +250,6 @@ mid_expr ->
 
 boolean_primary ->
     pre_boolean_primary IS (__ NOT | null) __ NULLX {% d => ({type: 'is_null', not: d[2], value:d[0]}) %}
-	|	NOT post_boolean_primary {% notOp %}
-	|	"!" post_boolean_primary {% notOp %}
   | boolean_primary _ comparison_type _ predicate {% d => (opExpr(d[2]))([d[0], null, d[4]]) %}
   | boolean_primary _ comparison_type _ (ANY | ALL) subquery
   | predicate {% d => d[0] %}

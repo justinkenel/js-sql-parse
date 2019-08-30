@@ -284,6 +284,10 @@ const tests = [
 	{
 		sql: `select not (a or b) from x`,
 		toSql: '(select (not (`a` or `b`)) from (`x`))'
+	},
+	{
+		sql: 'select a from b where (c or not d) and e is not null and f',
+		toSql: '(select `a` from (`b`) where ((((`c` or (not `d`)) and (`e` is not null)) and `f`)))'
 	}
 ];
 
