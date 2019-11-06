@@ -311,7 +311,18 @@ const tests = [
 				}]
 			}]
 		}
-	}
+  },
+  {
+    sql: `SELECT x = 'x', y = UPPER(a.y), z = a.aUserFunction(a.y) FROM c a GROUP BY a.y`,
+    toSql:
+      '(select (`x` = "x"), (`y` = UPPER(`a`.`y`)), (`z` = a.aUserFunction(`a`.`y`)) from (`c`as `a`) group by (`a`.`y`))',
+    expected: {
+      sourceTables: ['c'],
+      aliases: {
+        a: 'c'
+      }
+    }
+  }
 ];
 
 const parser = require('../parser')();
