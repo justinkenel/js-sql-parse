@@ -549,7 +549,7 @@ identifier ->
 
 function_identifier ->
     btstring {% d => ({value:d[0]}) %}
-  | [a-zA-Z_] [a-zA-Z0-9_]:* {% (d,l,reject) => {
+  | [a-zA-Z_] [a-zA-Z0-9_.]:* {% (d,l,reject) => {
     const value = d[0] + d[1].join('');
     if(reserved.indexOf(value.toUpperCase()) != -1 && valid_function_identifiers.indexOf(value.toUpperCase()) == -1) return reject;
     return {value: value};
