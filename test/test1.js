@@ -311,7 +311,29 @@ const tests = [
 				}]
 			}]
 		}
-	}
+  },
+  {
+    sql: `select a.x, b.y from s.c a left join s.d as b on a.x=b.x`,
+    toSql: '(select `a`.`x`, `b`.`y` from ((`s.c`as `a` left join `s.d`as `b` on (`a`.`x` = `b`.`x`))))',
+    expected: {
+      sourceTables: ['s.c', 's.d'],
+      aliases: {
+        a: 's.c',
+        b: 's.d'
+      }
+    }
+  },
+  {
+    sql: `select a.x, b.y from [s].[c a] a left join s.[d] as b on a.x=b.x`,
+    toSql: '(select `a`.`x`, `b`.`y` from ((`s.c a`as `a` left join `s.d`as `b` on (`a`.`x` = `b`.`x`))))',
+    expected: {
+      sourceTables: ['s.c a', 's.d'],
+      aliases: {
+        a: 's.c a',
+        b: 's.d'
+      }
+    }
+  }
 ];
 
 const parser = require('../parser')();

@@ -149,6 +149,7 @@ identifier_comma_list ->
 table ->
     identifier {% d => ({type: 'table', table: d[0].value}) %}
   | identifier "." identifier {% d => ({type: 'table', table: d[0].value +'.'+ d[2].value }) %}
+  | identifier "." identifier ( __ AS __ | __ ) identifier {% d => ({type: 'table', table: d[0].value +'.'+ d[2].value, alias: d[4].value }) %}
   | identifier ( __ AS __ | __) identifier {% d => ({type: 'table', table: d[0].value, alias: d[2].value}) %}
 
 where_clause ->
