@@ -8,10 +8,10 @@
     "nearley": "^2.9.0"
   },
   "devDependencies": {
-    "mocha": "^3.3.0",
-    "diff": ">=3.5.0",
     "debug": ">=2.6.9",
-    "growl": ">=1.10.0"
+    "diff": ">=3.5.0",
+    "growl": ">=1.10.0",
+    "mocha": "^8.2.1"
   },
   "scripts": {
     "compile": "nearleyc ./sql.ne -o sql-parse.js",
