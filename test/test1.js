@@ -78,6 +78,10 @@ const tests = [
     sql: 'select case when true then case when true then 1 end end as `v` from `test_table`',
     toSql: '(select (case when true then (case when true then 1 end) end) as `v` from (`test_table`))'
   },
+	{
+		sql: 'select x, sum(1) AS \`count\` from y left join x on((a.foo=b.foo))',
+		toSql: '(select `x`, sum(1) as `count` from ((`y` left join `x` on (`a`.`foo` = `b`.`foo`))))',
+	},
   {
     sql: 'select x, sum(1) AS \`count\` from y left join x on (a.foo=b.foo)',
     toSql: '(select `x`, sum(1) as `count` from ((`y` left join `x` on (`a`.`foo` = `b`.`foo`))))',
@@ -340,7 +344,10 @@ const parser = require('../parser')();
 
 describe('parse', function() {
   tests.map(t => {
-    describe(t.sql.slice(0,100), function() {
+		let fn = describe;
+		if(t.only) fn = describe.only;
+
+    fn(t.sql.slice(0,100), function() {
       try {
         const parsed = parser.parse(t.sql);
         it('parse', function() { });
