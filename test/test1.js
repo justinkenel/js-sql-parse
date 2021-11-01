@@ -337,6 +337,17 @@ const tests = [
         b: 's.d'
       }
     }
+  },
+  {
+    sql: `select x = 'x', y = upper(a.y), z = a.fnUserFunction(a.y) from c a group by a.y`,
+    toSql:
+      '(select (`x` = "x"), (`y` = upper(`a`.`y`)), (`z` = a.fnUserFunction(`a`.`y`)) from (`c`as `a`) group by (`a`.`y`))',
+    expected: {
+      sourceTables: ['c'],
+      aliases: {
+        a: 'c'
+      }
+    }
   }
 ];
 
